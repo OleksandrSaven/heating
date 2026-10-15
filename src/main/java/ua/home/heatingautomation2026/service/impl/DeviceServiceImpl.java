@@ -8,9 +8,11 @@ import org.springframework.web.server.ResponseStatusException;
 import ua.home.heatingautomation2026.dto.DeviceRequestRegistrationDto;
 import ua.home.heatingautomation2026.enam.DeviceRegistrationStatus;
 import ua.home.heatingautomation2026.entity.Device;
+import ua.home.heatingautomation2026.exception.EntityNotFoundException;
 import ua.home.heatingautomation2026.repository.DeviceRepository;
 import ua.home.heatingautomation2026.service.DeviceService;
 
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,7 +47,7 @@ public class DeviceServiceImpl implements DeviceService {
     @Override
     public Device approveDevice(UUID deviceId) {
         var device = deviceRepository.findById(deviceId).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Device not found"));
+                () -> new EntityNotFoundException(MessageFormat.format("Device with id {0} not found", deviceId)));
 
         if(device.getDeviceRegistrationStatus() != DeviceRegistrationStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Device registration status not PENDING");
@@ -58,7 +60,8 @@ public class DeviceServiceImpl implements DeviceService {
     @Override
     public Device disableDevice(UUID deviceId) {
         var device = deviceRepository.findById(deviceId).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Device not found"));
+                () -> new EntityNotFoundException("Device  with id " + deviceId + " not found"));
+
         if(device.getDeviceRegistrationStatus() != DeviceRegistrationStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Device status must be ACTIVE");
         }
@@ -69,11 +72,11 @@ public class DeviceServiceImpl implements DeviceService {
     @Override
     public Device enableDevice(UUID deviceId) {
         var device = deviceRepository.findById(deviceId).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+                () -> new EntityNotFoundException("Device with id " + deviceId + " not found"));
         if (device.getDeviceRegistrationStatus() != DeviceRegistrationStatus.DISABLED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Device registration status must be DISABLED");
         }
         device.setDeviceRegistrationStatus(DeviceRegistrationStatus.ACTIVE);
-        return null;
+        return deviceRepository.save(device);
     }
 }
