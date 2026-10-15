@@ -4,4 +4,5 @@ public enum DeviceType {
     UNKNOWN,
     RADIATOR_CONTROLLER,
     FLOOR_CONTROLLER,
+    BOILER_CONTROLLER,
 }
