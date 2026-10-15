@@ -20,4 +20,6 @@ public interface DeviceService {
     Device disableDevice(UUID deviceId);
 
     Device enableDevice(UUID deviceId);
+
+    Device heartBeat(String deviceId);
 }

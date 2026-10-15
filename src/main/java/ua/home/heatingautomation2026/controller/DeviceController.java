@@ -70,4 +70,10 @@ public class DeviceController {
         var device = deviceService.disableDevice(id);
         return ResponseEntity.ok(deviceMapper.toResponse(device));
     }
+
+    @PostMapping("/{deviceId}/heartbeat")
+    public ResponseEntity<DeviceResponse> heartbeatDevice(@PathVariable String deviceId) {
+        var device = deviceService.heartBeat(deviceId);
+        return ResponseEntity.ok(deviceMapper.toResponse(device));
+    }
 }

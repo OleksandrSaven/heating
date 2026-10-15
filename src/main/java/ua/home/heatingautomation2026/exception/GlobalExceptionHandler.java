@@ -105,6 +105,19 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(EntityValidationException.class)
+    public ResponseEntity<ApiError> handleEntityValidationException(
+            EntityValidationException ex,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage(),
+                request.getRequestURI(),
+                Map.of()
+        );
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataIntegrityViolation(
             DataIntegrityViolationException ex,
