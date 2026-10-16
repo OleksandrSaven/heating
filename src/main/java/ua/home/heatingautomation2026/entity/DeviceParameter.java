@@ -34,6 +34,13 @@ public class DeviceParameter {
     @JoinColumn(name = "parameter_pk", nullable = false)
     private ParameterDefinition parameterDefinition;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "sensor_pk",
+            unique = true
+    )
+    private Sensor sensor;
+
     @Column(name = "is_enabled", nullable = false)
     private boolean enabled = true;
 
@@ -46,6 +53,16 @@ public class DeviceParameter {
     ) {
         this.device = device;
         this.parameterDefinition = parameterDefinition;
+    }
+
+    public DeviceParameter(
+            Device device,
+            ParameterDefinition parameterDefinition,
+            Sensor sensor
+    ) {
+        this.device = device;
+        this.parameterDefinition = parameterDefinition;
+        this.sensor = sensor;
     }
 
     @PrePersist
@@ -61,5 +78,13 @@ public class DeviceParameter {
 
     public void disable() {
         this.enabled = false;
+    }
+
+    public void assignSensor(Sensor sensor) {
+        this.sensor = sensor;
+    }
+
+    public void unassignSensor() {
+        this.sensor = null;
     }
 }

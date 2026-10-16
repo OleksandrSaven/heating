@@ -21,6 +21,9 @@ public interface DeviceParameterMapper {
     @Mapping(target = "parameterName", source = "parameterDefinition.name")
     @Mapping(target = "dataType", source = "parameterDefinition.parameterDataType")
     @Mapping(target = "unit", source = "parameterDefinition.unit")
+    @Mapping(target = "sensorId", source = "sensor.sensorId")
+    @Mapping(target = "sensorName", source = "sensor.sensorName")
+    @Mapping(target = "sensorType", source = "sensor.sensorType")
     DeviceParameterResponse toResponse(DeviceParameter deviceParameter);
 
     List<DeviceParameterResponse> toResponseList(

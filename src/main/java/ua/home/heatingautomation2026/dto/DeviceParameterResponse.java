@@ -15,6 +15,9 @@ public record DeviceParameterResponse(
         ParameterDataType dataType,
         String unit,
         boolean enabled,
-        Instant createdAt
+        Instant createdAt,
+        String sensorId,
+        String sensorName,
+        String sensorType
 ) {
 }

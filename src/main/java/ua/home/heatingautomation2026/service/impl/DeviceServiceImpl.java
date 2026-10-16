@@ -8,7 +8,9 @@ import ua.home.heatingautomation2026.enam.DeviceRegistrationStatus;
 import ua.home.heatingautomation2026.entity.Device;
 import ua.home.heatingautomation2026.exception.EntityNotFoundException;
 import ua.home.heatingautomation2026.exception.EntityValidationException;
+import ua.home.heatingautomation2026.repository.DeviceParameterRepository;
 import ua.home.heatingautomation2026.repository.DeviceRepository;
+import ua.home.heatingautomation2026.repository.TelemetryReadingRepository;
 import ua.home.heatingautomation2026.service.DeviceService;
 
 import java.text.MessageFormat;
@@ -21,6 +23,8 @@ import java.util.UUID;
 public class DeviceServiceImpl implements DeviceService {
     private static final String MESSAGE = "Device with id {0} not found";
     private final DeviceRepository deviceRepository;
+    private final TelemetryReadingRepository telemetryReadingRepository;
+    private final DeviceParameterRepository deviceParameterRepository;
 
     @Override
     @Transactional
@@ -87,5 +91,27 @@ public class DeviceServiceImpl implements DeviceService {
                 () -> new EntityNotFoundException(MessageFormat.format(MESSAGE, deviceId)));
         device.setLastHeartbeat(Instant.now());
         return deviceRepository.save(device);
+    }
+
+    @Override
+    public Device findDevice(String deviceId) {
+        return deviceRepository.findByDeviceId(deviceId).orElseThrow(
+                () -> new EntityNotFoundException(MessageFormat.format(MESSAGE, deviceId)));
+    }
+
+    @Override
+    @Transactional
+    public void deleteDevice(UUID deviceId) {
+        Device device = deviceRepository.findById(deviceId)
+                .orElseThrow(() -> new EntityNotFoundException("Device not found"));
+
+        // 1. Видаляємо всю історію телеметрії пристрою.
+        telemetryReadingRepository.deleteAllByDeviceId(deviceId);
+
+        // 2. Видаляємо призначені пристрою параметри.
+        deviceParameterRepository.deleteAllByDeviceId(deviceId);
+
+        // 3. Видаляємо сам пристрій.
+        deviceRepository.delete(device);
     }
 }

@@ -22,4 +22,8 @@ public interface DeviceService {
     Device enableDevice(UUID deviceId);
 
     Device heartBeat(String deviceId);
+
+    Device findDevice(String deviceId);
+
+    void deleteDevice(UUID deviceId);
 }

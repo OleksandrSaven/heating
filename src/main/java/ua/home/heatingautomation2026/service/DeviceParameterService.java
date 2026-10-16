@@ -1,6 +1,7 @@
 package ua.home.heatingautomation2026.service;
 
 import ua.home.heatingautomation2026.entity.DeviceParameter;
+import ua.home.heatingautomation2026.entity.Sensor;
 
 import java.util.List;
 
@@ -12,5 +13,5 @@ public interface DeviceParameterService {
 
     DeviceParameter setParameterStatus(String deviceId, String parameterCode, boolean status);
 
-
+    void assignSensor(String deviceId, String parameterCode, String sensorId);
 }

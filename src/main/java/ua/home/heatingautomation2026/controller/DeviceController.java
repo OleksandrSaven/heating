@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -75,5 +76,13 @@ public class DeviceController {
     public ResponseEntity<DeviceResponse> heartbeatDevice(@PathVariable String deviceId) {
         var device = deviceService.heartBeat(deviceId);
         return ResponseEntity.ok(deviceMapper.toResponse(device));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteDevice(
+            @PathVariable UUID id) {
+        deviceService.deleteDevice(id);
+
+        return ResponseEntity.noContent().build();
     }
 }

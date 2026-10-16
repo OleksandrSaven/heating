@@ -32,6 +32,13 @@ public class TelemetryReading {
     @JoinColumn(name = "device_parameter_pk", nullable = false)
     private DeviceParameter deviceParameter;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "sensor_pk",
+            updatable = false
+    )
+    private Sensor sensor;
+
     @Column(name = "numeric_value", precision = 19, scale = 6)
     private BigDecimal numericValue;
 
@@ -57,6 +64,7 @@ public class TelemetryReading {
         this.deviceParameter = deviceParameter;
         this.numericValue = numericValue;
         this.booleanValue = booleanValue;
+        this.sensor = deviceParameter.getSensor();
         this.textValue = textValue;
         this.measuredAt = measuredAt;
     }
