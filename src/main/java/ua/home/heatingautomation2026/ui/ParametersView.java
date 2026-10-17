@@ -79,8 +79,9 @@ public class ParametersView extends VerticalLayout {
         this.sensorService = sensorService;
 
         setSizeFull();
-        setPadding(true);
+        setPadding(false);
         setSpacing(true);
+        addClassName("page-view");
 
         H1 title = new H1("Параметри");
 
@@ -105,7 +106,7 @@ public class ParametersView extends VerticalLayout {
     }
 
     private void configureParametersGrid() {
-
+        parametersGrid.addClassName("responsive-grid");
         parametersGrid.addColumn(
                         ParameterDefinitionDto::code
                 )
@@ -148,12 +149,12 @@ public class ParametersView extends VerticalLayout {
 
     private void configureParameterForm() {
 
-        codeField.setPlaceholder("buffer.top_temperature");
+        codeField.setPlaceholder("temperature");
         codeField.setHelperText(
-                "Унікальний код, наприклад boiler.flue_temperature"
+                "Унікальний код, наприклад temperature"
         );
 
-        nameField.setPlaceholder("Температура верхньої частини буфера");
+        nameField.setPlaceholder("Температура");
 
         descriptionField.setMaxLength(500);
         descriptionField.setWidthFull();
@@ -168,6 +169,7 @@ public class ParametersView extends VerticalLayout {
     private FormLayout createParameterForm() {
 
         FormLayout form = new FormLayout();
+        form.addClassName("responsive-form");
 
         form.add(
                 codeField,
@@ -214,6 +216,7 @@ public class ParametersView extends VerticalLayout {
     private FormLayout createAssignmentForm() {
 
         FormLayout form = new FormLayout();
+        form.addClassName("responsive-form");
 
         form.add(deviceSelect, parameterSelect);
 
@@ -409,6 +412,7 @@ public class ParametersView extends VerticalLayout {
     private FormLayout createSensorBindingForm() {
 
         FormLayout form = new FormLayout();
+        form.addClassName("responsive-form");
 
         form.add(
                 sensorDeviceSelect,

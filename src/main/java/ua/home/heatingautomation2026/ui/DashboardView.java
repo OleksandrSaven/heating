@@ -48,8 +48,9 @@ public class DashboardView extends VerticalLayout {
         this.dashboardService = dashboardService;
 
         setSizeFull();
-        setPadding(true);
+        setPadding(false);
         setSpacing(true);
+        addClassName("page-view");
 
         H1 title = new H1("Система опалення");
 
@@ -60,6 +61,7 @@ public class DashboardView extends VerticalLayout {
 
         HorizontalLayout header =
                 new HorizontalLayout(title, refreshButton);
+        header.addClassName("page-header");
 
         header.setWidthFull();
         header.setAlignItems(Alignment.CENTER);
@@ -71,14 +73,16 @@ public class DashboardView extends VerticalLayout {
                 createStatCard("Останні показники", readingsValue)
         );
 
-        statistics.getStyle()
+        statistics.addClassName("stats-grid");
+
+/*        statistics.getStyle()
                 .set("display", "grid")
                 .set(
                         "grid-template-columns",
                         "repeat(auto-fit, minmax(220px, 1fr))"
                 )
                 .set("gap", "16px")
-                .set("width", "100%");
+                .set("width", "100%");*/
 
         H2 readingsTitle = new H2("Останні показники");
 
@@ -108,7 +112,9 @@ public class DashboardView extends VerticalLayout {
                 .set("font-weight", "600");
 
         Div card = new Div(heading, value);
+        card.addClassName("stat-card");
 
+/*
         card.getStyle()
                 .set("padding", "20px")
                 .set("border-radius", "12px")
@@ -119,12 +125,13 @@ public class DashboardView extends VerticalLayout {
                 )
                 .set("box-shadow", "var(--lumo-box-shadow-xs)")
                 .set("box-sizing", "border-box");
+*/
 
         return card;
     }
 
     private void configureReadingsGrid() {
-
+        readingsGrid.addClassName("responsive-grid");
         readingsGrid.addColumn(
                         TelemetryReadingResponse::deviceName
                 )

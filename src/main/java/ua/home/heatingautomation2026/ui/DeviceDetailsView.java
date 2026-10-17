@@ -83,8 +83,9 @@ public class DeviceDetailsView extends VerticalLayout
         this.telemetryReadingMapper = telemetryReadingMapper;
 
         setSizeFull();
-        setPadding(true);
+        setPadding(false);
         setSpacing(true);
+        addClassName("page-view");
 
         Button backButton = new Button("← До пристроїв");
         backButton.addClickListener(event ->
@@ -138,7 +139,9 @@ public class DeviceDetailsView extends VerticalLayout
     }
 
     private void configureParametersGrid() {
-
+        parametersGrid.addClassName("responsive-grid");
+        currentReadingsGrid.addClassName("responsive-grid");
+        historyGrid.addClassName("responsive-grid");
         parametersGrid.addColumn(
                         DeviceParameterResponse::parameterCode
                 )
@@ -204,7 +207,7 @@ public class DeviceDetailsView extends VerticalLayout
     }
 
     private void configureCurrentReadingsGrid() {
-
+        currentReadingsGrid.addClassName("responsive-grid");
         currentReadingsGrid.addColumn(
                         TelemetryReadingResponse::parameterName
                 )
@@ -237,7 +240,7 @@ public class DeviceDetailsView extends VerticalLayout
     }
 
     private void configureHistoryGrid() {
-
+        historyGrid.addClassName("responsive-grid");
         historyGrid.addColumn(
                         TelemetryReadingResponse::parameterName
                 )

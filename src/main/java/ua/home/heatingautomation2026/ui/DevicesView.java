@@ -1,5 +1,8 @@
 package ua.home.heatingautomation2026.ui;
 
+import com.vaadin.flow.component.AttachEvent;
+import com.vaadin.flow.component.DetachEvent;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
@@ -10,7 +13,10 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.shared.Registration;
+import ua.home.heatingautomation2026.enam.DeviceConnectivityStatus;
 import ua.home.heatingautomation2026.entity.Device;
+import ua.home.heatingautomation2026.service.DeviceConnectivityService;
 import ua.home.heatingautomation2026.service.DeviceService;
 
 
@@ -28,15 +34,20 @@ public class DevicesView extends VerticalLayout {
                     .withZone(ZoneId.of("Europe/Kyiv"));
 
     private final DeviceService deviceService;
+    private final DeviceConnectivityService connectivityService;
+
+    private Registration pollRegistration;
 
     private final Grid<Device> grid = new Grid<>(Device.class, false);
 
-    public DevicesView(DeviceService deviceService) {
+    public DevicesView(DeviceService deviceService,  DeviceConnectivityService connectivityService) {
         this.deviceService = deviceService;
+        this.connectivityService = connectivityService;
 
         setSizeFull();
-        setPadding(true);
+        setPadding(false);
         setSpacing(true);
+        addClassName("page-view");
 
         H1 title = new H1("Пристрої");
 
@@ -48,6 +59,7 @@ public class DevicesView extends VerticalLayout {
         HorizontalLayout header =
                 new HorizontalLayout(title, refreshButton);
 
+        header.addClassName("page-header");
         header.setWidthFull();
         header.setAlignItems(Alignment.CENTER);
         header.expand(title);
@@ -64,7 +76,7 @@ public class DevicesView extends VerticalLayout {
     }
 
     private void configureGrid() {
-
+        grid.addClassName("responsive-grid");
         grid.addColumn(Device::getDeviceId)
                 .setHeader("ID пристрою")
                 .setAutoWidth(true)
@@ -87,6 +99,10 @@ public class DevicesView extends VerticalLayout {
                 .setHeader("Статус")
                 .setAutoWidth(true);
 
+        grid.addColumn(this::getConnectivityLabel)
+                .setHeader("Зв'язок")
+                .setAutoWidth(true);
+
         grid.addColumn(device ->
                         formatTimestamp(device.getLastHeartbeat())
                 )
@@ -105,7 +121,7 @@ public class DevicesView extends VerticalLayout {
 
         HorizontalLayout actions = new HorizontalLayout();
         actions.setSpacing(true);
-
+        actions.addClassName("row-actions");
         String status =
                 device.getDeviceRegistrationStatus().name();
 
@@ -197,6 +213,47 @@ public class DevicesView extends VerticalLayout {
             case "DISABLED" -> "Вимкнений";
             default -> status;
         };
+    }
+
+    private String getConnectivityLabel(Device device) {
+
+        DeviceConnectivityStatus status =
+                connectivityService.getDeviceConnectivityStatus(
+                        device.getLastHeartbeat()
+                );
+
+        return switch (status) {
+            case ONLINE -> "🟢 Онлайн";
+            case OFFLINE -> "🔴 Офлайн";
+            case NEVER_CONNECTED -> "⚪ Не підключався";
+        };
+    }
+
+
+    @Override
+    protected void onAttach(AttachEvent attachEvent) {
+        super.onAttach(attachEvent);
+
+        UI ui = attachEvent.getUI();
+
+        ui.setPollInterval(15_000);
+
+        pollRegistration = ui.addPollListener(
+                event -> refreshData()
+        );
+    }
+
+    @Override
+    protected void onDetach(DetachEvent detachEvent) {
+
+        if (pollRegistration != null) {
+            pollRegistration.remove();
+            pollRegistration = null;
+        }
+
+        detachEvent.getUI().setPollInterval(-1);
+
+        super.onDetach(detachEvent);
     }
 
     private String formatTimestamp(Instant timestamp) {

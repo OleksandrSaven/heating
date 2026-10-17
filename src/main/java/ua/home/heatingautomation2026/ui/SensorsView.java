@@ -50,8 +50,9 @@ public class SensorsView extends VerticalLayout {
         this.deviceService = deviceService;
 
         setSizeFull();
-        setPadding(true);
+        setPadding(false);
         setSpacing(true);
+        addClassName("page-view");
 
         H1 title = new H1("Фізичні датчики");
 
@@ -71,6 +72,7 @@ public class SensorsView extends VerticalLayout {
         HorizontalLayout header =
                 new HorizontalLayout(title, refreshButton);
 
+        header.addClassName("page-header");
         header.setWidthFull();
         header.setAlignItems(Alignment.CENTER);
         header.expand(title);
@@ -88,7 +90,7 @@ public class SensorsView extends VerticalLayout {
     }
 
     private void configureGrid() {
-
+        sensorsGrid.addClassName("responsive-grid");
         sensorsGrid.addColumn(Sensor::getSensorId)
                 .setHeader("ID датчика")
                 .setAutoWidth(true);
@@ -161,6 +163,7 @@ public class SensorsView extends VerticalLayout {
     private FormLayout createForm() {
 
         FormLayout form = new FormLayout();
+        form.addClassName("responsive-form");
 
         form.add(
                 sensorIdField,
