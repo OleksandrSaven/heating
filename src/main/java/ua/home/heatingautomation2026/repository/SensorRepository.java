@@ -14,9 +14,16 @@ public interface SensorRepository extends JpaRepository<Sensor, UUID> {
 
     boolean existsBySensorId(String sensorId);
 
-    @EntityGraph(attributePaths = {"device"})
+    @EntityGraph(attributePaths = {
+            "device",
+            "parameterDefinition"
+    })
     List<Sensor> findAllByOrderBySensorIdAsc();
 
+    @EntityGraph(attributePaths = {
+            "device",
+            "parameterDefinition"
+    })
     List<Sensor> findAllByDevice_DeviceIdOrderBySensorIdAsc(
             String deviceId
     );

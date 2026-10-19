@@ -9,7 +9,6 @@ import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -17,15 +16,15 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.shared.Registration;
-
-import ua.home.heatingautomation2026.dto.DeviceParameterResponse;
 import ua.home.heatingautomation2026.dto.TelemetryReadingResponse;
 import ua.home.heatingautomation2026.entity.Device;
+import ua.home.heatingautomation2026.entity.Sensor;
 import ua.home.heatingautomation2026.exception.EntityNotFoundException;
 import ua.home.heatingautomation2026.mapper.DeviceParameterMapper;
 import ua.home.heatingautomation2026.mapper.TelemetryReadingMapper;
 import ua.home.heatingautomation2026.service.DeviceParameterService;
 import ua.home.heatingautomation2026.service.DeviceService;
+import ua.home.heatingautomation2026.service.SensorService;
 import ua.home.heatingautomation2026.service.TelemetryService;
 
 import java.time.Instant;
@@ -51,14 +50,16 @@ public class DeviceDetailsView extends VerticalLayout
     private final DeviceParameterMapper deviceParameterMapper;
     private final TelemetryService telemetryService;
     private final TelemetryReadingMapper telemetryReadingMapper;
+    private final SensorService sensorService;
+
 
     private final H1 title = new H1("Деталі пристрою");
     private final Paragraph deviceInfo = new Paragraph();
     private final Span deviceStatus = new Span();
     private final Span lastHeartbeat = new Span();
 
-    private final Grid<DeviceParameterResponse> parametersGrid =
-            new Grid<>(DeviceParameterResponse.class, false);
+    private final Grid<Sensor> parametersGrid =
+            new Grid<>(Sensor.class, false);
 
     private final Grid<TelemetryReadingResponse> currentReadingsGrid =
             new Grid<>(TelemetryReadingResponse.class, false);
@@ -74,13 +75,14 @@ public class DeviceDetailsView extends VerticalLayout
             DeviceParameterService deviceParameterService,
             DeviceParameterMapper deviceParameterMapper,
             TelemetryService telemetryService,
-            TelemetryReadingMapper telemetryReadingMapper
+            TelemetryReadingMapper telemetryReadingMapper, SensorService sensorService
     ) {
         this.deviceService = deviceService;
         this.deviceParameterService = deviceParameterService;
         this.deviceParameterMapper = deviceParameterMapper;
         this.telemetryService = telemetryService;
         this.telemetryReadingMapper = telemetryReadingMapper;
+        this.sensorService = sensorService;
 
         setSizeFull();
         setPadding(false);
@@ -120,7 +122,7 @@ public class DeviceDetailsView extends VerticalLayout
                 header,
                 deviceInfo,
                 deviceStatusLayout,
-                new H2("Призначені параметри"),
+                new H2("Датчики"),
                 parametersGrid,
                 new H2("Поточні значення"),
                 currentReadingsGrid,
@@ -140,43 +142,43 @@ public class DeviceDetailsView extends VerticalLayout
 
     private void configureParametersGrid() {
         parametersGrid.addClassName("responsive-grid");
-        currentReadingsGrid.addClassName("responsive-grid");
-        historyGrid.addClassName("responsive-grid");
         parametersGrid.addColumn(
-                        DeviceParameterResponse::parameterCode
+                        Sensor::getSensorId
                 )
-                .setHeader("Код")
+                .setHeader("Id датчика")
                 .setAutoWidth(true);
 
         parametersGrid.addColumn(
-                        DeviceParameterResponse::parameterName
+                        Sensor::getSensorName
                 )
-                .setHeader("Параметр")
+                .setHeader("Назва")
                 .setAutoWidth(true)
                 .setFlexGrow(1);
 
         parametersGrid.addColumn(
-                        parameter -> parameter.dataType().name()
+                        parameter -> parameter.getParameterDefinition().getName()
                 )
                 .setHeader("Тип")
                 .setAutoWidth(true);
 
         parametersGrid.addColumn(
-                        parameter -> parameter.unit() == null
+                        parameter -> parameter.getParameterDefinition() == null
                                 ? "—"
-                                : parameter.unit()
+                                : parameter.getParameterDefinition().getUnit()
                 )
                 .setHeader("Одиниця")
                 .setAutoWidth(true);
 
         parametersGrid.addColumn(
-                        parameter -> parameter.enabled()
+                        parameter -> parameter.isEnabled()
                                 ? "Увімкнений"
                                 : "Вимкнений"
                 )
                 .setHeader("Доступність")
                 .setAutoWidth(true);
 
+
+/*
         parametersGrid.addColumn(
                         parameter -> parameter.sensorName() == null
                                 ? "Не прив'язано"
@@ -201,6 +203,7 @@ public class DeviceDetailsView extends VerticalLayout
                 )
                 .setHeader("Тип датчика")
                 .setAutoWidth(true);
+*/
 
         parametersGrid.setWidthFull();
         parametersGrid.setHeight("250px");
@@ -317,11 +320,7 @@ public class DeviceDetailsView extends VerticalLayout
             );
 
             // Завантажуємо призначені параметри
-            List<DeviceParameterResponse> parameters =
-                    deviceParameterMapper.toResponseList(
-                            deviceParameterService
-                                    .getDeviceParameters(currentDeviceId)
-                    );
+            List<Sensor> parameters = sensorService.findAllByDeviceId(device.getDeviceId());
 
             parametersGrid.setItems(parameters);
 

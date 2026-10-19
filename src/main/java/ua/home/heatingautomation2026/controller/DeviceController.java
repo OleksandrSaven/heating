@@ -28,6 +28,14 @@ public class DeviceController {
     private final DeviceService deviceService;
     private final DeviceMapper deviceMapper;
 
+    @GetMapping("/{deviceId}")
+    public ResponseEntity<DeviceResponse> getDevice(
+            @PathVariable String deviceId
+    ) {
+        var device = deviceService.findDevice(deviceId);
+        return ResponseEntity.ok(deviceMapper.toResponse(device));
+    }
+
     @GetMapping
     public List<DeviceResponse> getDevices() {
 

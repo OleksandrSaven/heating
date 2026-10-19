@@ -77,6 +77,10 @@ public class Sensor {
     )
     private Device device;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parameter_definition_pk")
+    private ParameterDefinition parameterDefinition;
+
     @Column(name = "is_enabled", nullable = false)
     private boolean enabled = true;
 
@@ -97,6 +101,20 @@ public class Sensor {
         this.sensorName = sensorName;
         this.sensorType = sensorType;
         this.device = device;
+    }
+
+    public Sensor(
+            String sensorId,
+            String sensorName,
+            String sensorType,
+            Device device,
+            ParameterDefinition parameterDefinition
+    ) {
+        this.sensorId = sensorId;
+        this.sensorName = sensorName;
+        this.sensorType = sensorType;
+        this.device = device;
+        this.parameterDefinition = parameterDefinition;
     }
 
     public void rename(String sensorName) {

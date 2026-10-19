@@ -16,8 +16,8 @@ import java.util.UUID;
         name = "telemetry_readings",
         indexes = {
                 @Index(
-                        name = "idx_telemetry_assignment_received",
-                        columnList = "device_parameter_pk, received_at"
+                        name = "idx_telemetry_sensor_received",
+                        columnList = "sensor_pk, received_at"
                 )
         }
 )
@@ -29,12 +29,9 @@ public class TelemetryReading {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "device_parameter_pk", nullable = false)
-    private DeviceParameter deviceParameter;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "sensor_pk",
+            nullable = false,
             updatable = false
     )
     private Sensor sensor;
@@ -51,20 +48,23 @@ public class TelemetryReading {
     @Column(name = "measured_at")
     private Instant measuredAt;
 
-    @Column(name = "received_at", nullable = false, updatable = false)
+    @Column(
+            name = "received_at",
+            nullable = false,
+            updatable = false
+    )
     private Instant receivedAt;
 
     public TelemetryReading(
-            DeviceParameter deviceParameter,
+            Sensor sensor,
             BigDecimal numericValue,
             Boolean booleanValue,
             String textValue,
             Instant measuredAt
     ) {
-        this.deviceParameter = deviceParameter;
+        this.sensor = sensor;
         this.numericValue = numericValue;
         this.booleanValue = booleanValue;
-        this.sensor = deviceParameter.getSensor();
         this.textValue = textValue;
         this.measuredAt = measuredAt;
     }

@@ -16,5 +16,4 @@ public interface ParameterDefinitionService {
 
     List<ParameterDefinition> findAllByParameterDataType(ParameterDataType parameterDataType);
 
-
 }

@@ -14,32 +14,30 @@ public interface TelemetryReadingRepository
         extends JpaRepository<TelemetryReading, UUID> {
 
     @EntityGraph(attributePaths = {
-            "deviceParameter",
-            "deviceParameter.device",
-            "deviceParameter.parameterDefinition",
-            "sensor"
+            "sensor",
+            "sensor.device",
+            "sensor.parameterDefinition"
     })
-    List<TelemetryReading>
-    findTop100ByDeviceParameter_Device_DeviceIdOrderByReceivedAtDesc(
-            String deviceId
-    );
+    List<TelemetryReading> findTop100BySensor_Device_DeviceIdOrderByReceivedAtDesc(String deviceId);
 
     @EntityGraph(attributePaths = {
-            "deviceParameter",
-            "deviceParameter.device",
-            "deviceParameter.parameterDefinition",
-            "sensor"
+            "sensor",
+            "sensor.device",
+            "sensor.parameterDefinition"
     })
     List<TelemetryReading> findTop100ByOrderByReceivedAtDesc();
 
-    @Modifying(flushAutomatically = true)
+    @Modifying(
+            flushAutomatically = true,
+            clearAutomatically = true
+    )
     @Query("""
-        DELETE FROM TelemetryReading tr
-        WHERE tr.deviceParameter.id IN (
-            SELECT dp.id
-            FROM DeviceParameter dp
-            WHERE dp.device.id = :deviceId
-        )
-        """)
+            DELETE FROM TelemetryReading tr
+            WHERE tr.sensor.id IN (
+                SELECT s.id
+                FROM Sensor s
+                WHERE s.device.id = :deviceId
+            )
+            """)
     int deleteAllByDeviceId(@Param("deviceId") UUID deviceId);
 }

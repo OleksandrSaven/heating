@@ -32,10 +32,10 @@ public class DeviceParameterServiceImpl implements DeviceParameterService {
         var parameter = parameterDefinitionRepository.findByCode(parameterCode).orElseThrow(
                 () -> new EntityNotFoundException("Parameter with code: " + parameterCode + " not found"));
 
-        if (deviceParameterRepository.existsByDevice_IdAndParameterDefinition_Id(device.getId(), parameter.getId())) {
+  /*      if (deviceParameterRepository.existsByDevice_IdAndParameterDefinition_Id(device.getId(), parameter.getId())) {
             throw new EntityValidationException("Parameter with code: " + parameterCode +
                     " already assigned to device with id: " + deviceId);
-        }
+        }*/
         DeviceParameter deviceParameter = new DeviceParameter(
                 device, parameter
         );

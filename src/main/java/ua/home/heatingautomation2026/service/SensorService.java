@@ -12,9 +12,12 @@ public interface SensorService {
             String sensorId,
             String sensorName,
             String sensorType,
-            String deviceId);
+            String deviceId,
+            String parameterCode);
 
     void setEnabled(UUID sensorUuid, boolean enabled);
 
     List<Sensor> findEnabledByDeviceId(String deviceId);
+
+    List<Sensor> findAllByDeviceId(String deviceId);
 }

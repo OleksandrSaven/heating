@@ -1,7 +1,6 @@
 package ua.home.heatingautomation2026.service;
 
 import ua.home.heatingautomation2026.entity.DeviceParameter;
-import ua.home.heatingautomation2026.entity.Sensor;
 
 import java.util.List;
 

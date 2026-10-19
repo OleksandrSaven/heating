@@ -14,8 +14,10 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import ua.home.heatingautomation2026.entity.Device;
+import ua.home.heatingautomation2026.entity.ParameterDefinition;
 import ua.home.heatingautomation2026.entity.Sensor;
 import ua.home.heatingautomation2026.service.DeviceService;
+import ua.home.heatingautomation2026.service.ParameterDefinitionService;
 import ua.home.heatingautomation2026.service.SensorService;
 
 import java.util.List;
@@ -26,6 +28,7 @@ public class SensorsView extends VerticalLayout {
 
     private final SensorService sensorService;
     private final DeviceService deviceService;
+    private final ParameterDefinitionService parameterDefinitionService;
 
     private final Grid<Sensor> sensorsGrid =
             new Grid<>(Sensor.class, false);
@@ -42,12 +45,17 @@ public class SensorsView extends VerticalLayout {
     private final ComboBox<Device> deviceSelect =
             new ComboBox<>("Контролер");
 
+    private final ComboBox<ParameterDefinition> parameterSelect =
+            new ComboBox<>("Параметр");
+
     public SensorsView(
             SensorService sensorService,
-            DeviceService deviceService
+            DeviceService deviceService,
+            ParameterDefinitionService parameterDefinitionService
     ) {
         this.sensorService = sensorService;
         this.deviceService = deviceService;
+        this.parameterDefinitionService = parameterDefinitionService;
 
         setSizeFull();
         setPadding(false);
@@ -105,6 +113,23 @@ public class SensorsView extends VerticalLayout {
                 .setAutoWidth(true);
 
         sensorsGrid.addColumn(
+                        sensor -> sensor.getParameterDefinition() == null
+                                ? "Не призначено"
+                                : sensor.getParameterDefinition().getName()
+                )
+                .setHeader("Параметр")
+                .setAutoWidth(true)
+                .setFlexGrow(1);
+
+        sensorsGrid.addColumn(
+                        sensor -> sensor.getParameterDefinition() == null
+                                ? "—"
+                                : sensor.getParameterDefinition().getCode()
+                )
+                .setHeader("Код параметра")
+                .setAutoWidth(true);
+
+        sensorsGrid.addColumn(
                         sensor -> sensor.getDevice().getDeviceName()
                 )
                 .setHeader("Контролер")
@@ -158,6 +183,17 @@ public class SensorsView extends VerticalLayout {
 
         deviceSelect.setRequired(true);
         deviceSelect.setWidthFull();
+        parameterSelect.setItems(
+                parameterDefinitionService.getAllParameterDefinitions()
+        );
+
+        parameterSelect.setItemLabelGenerator(
+                parameter -> parameter.getName()
+                        + " (" + parameter.getCode() + ")"
+        );
+
+        parameterSelect.setRequired(true);
+        parameterSelect.setWidthFull();
     }
 
     private FormLayout createForm() {
@@ -169,7 +205,8 @@ public class SensorsView extends VerticalLayout {
                 sensorIdField,
                 sensorNameField,
                 sensorTypeField,
-                deviceSelect
+                deviceSelect,
+                parameterSelect
         );
 
         form.setResponsiveSteps(
@@ -226,11 +263,13 @@ public class SensorsView extends VerticalLayout {
     }
 
     private void registerSensor() {
+        ParameterDefinition parameter = parameterSelect.getValue();
 
         if (sensorIdField.isEmpty()
                 || sensorNameField.isEmpty()
                 || sensorTypeField.isEmpty()
-                || deviceSelect.isEmpty()) {
+                || deviceSelect.isEmpty()
+                || parameter == null) {
 
             Notification.show(
                     "Заповни всі поля та вибери контролер",
@@ -248,12 +287,14 @@ public class SensorsView extends VerticalLayout {
                     sensorIdField.getValue(),
                     sensorNameField.getValue(),
                     sensorTypeField.getValue(),
-                    device.getDeviceId()
+                    device.getDeviceId(),
+                    parameter.getCode()
             );
 
             sensorIdField.clear();
             sensorNameField.clear();
             sensorTypeField.clear();
+            parameterSelect.clear();
 
             refreshData();
 

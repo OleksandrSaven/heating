@@ -147,9 +147,9 @@ public class DashboardView extends VerticalLayout {
                 .setFlexGrow(1);
 
         readingsGrid.addColumn(
-                        TelemetryReadingResponse::parameterCode
+                        TelemetryReadingResponse::sensorName
                 )
-                .setHeader("Код параметра")
+                .setHeader("Назава параметра")
                 .setAutoWidth(true)
                 .setFlexGrow(1);
 

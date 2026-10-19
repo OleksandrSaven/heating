@@ -9,13 +9,13 @@ import ua.home.heatingautomation2026.dto.TelemetryRequest;
 import ua.home.heatingautomation2026.enam.DeviceRegistrationStatus;
 import ua.home.heatingautomation2026.enam.ParameterDataType;
 import ua.home.heatingautomation2026.entity.Device;
-import ua.home.heatingautomation2026.entity.DeviceParameter;
+import ua.home.heatingautomation2026.entity.Sensor;
 import ua.home.heatingautomation2026.entity.TelemetryReading;
 import ua.home.heatingautomation2026.exception.EntityNotFoundException;
 import ua.home.heatingautomation2026.exception.EntityValidationException;
 import ua.home.heatingautomation2026.mapper.TelemetryReadingMapper;
-import ua.home.heatingautomation2026.repository.DeviceParameterRepository;
 import ua.home.heatingautomation2026.repository.DeviceRepository;
+import ua.home.heatingautomation2026.repository.SensorRepository;
 import ua.home.heatingautomation2026.repository.TelemetryReadingRepository;
 import ua.home.heatingautomation2026.service.TelemetryService;
 
@@ -23,26 +23,27 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class TelemetryServiceImpl implements TelemetryService {
-    private final DeviceParameterRepository deviceParameterRepository;
     private final TelemetryReadingRepository telemetryReadingRepository;
     private final DeviceRepository deviceRepository;
     private final TelemetryReadingMapper telemetryReadingMapper;
-
+    private final SensorRepository sensorRepository;
 
     @Override
     @Transactional
     public int ingest(String deviceId, TelemetryRequest request) {
 
-        // 1. Перевіряємо, чи існує пристрій
-        Device device = findDevice(deviceId);
+        // 1. Перевіряємо пристрій
+        Device device = deviceRepository.findByDeviceId(deviceId)
+                .orElseThrow(() ->
+                        new EntityValidationException("Device with id " + deviceId + " not found")
+                );
 
-        // 2. Приймати телеметрію можуть лише активні пристрої
+        // 2. Телеметрію можуть надсилати лише активні пристрої
         if (device.getDeviceRegistrationStatus()
                 != DeviceRegistrationStatus.ACTIVE) {
 
@@ -53,67 +54,64 @@ public class TelemetryServiceImpl implements TelemetryService {
         }
 
         List<TelemetryReading> readings = new ArrayList<>();
-        Set<String> processedCodes = new HashSet<>();
+        Set<String> processedSensorIds = new HashSet<>();
 
-        // 3. Перевіряємо кожен параметр із запиту
+        // 3. Ключі values тепер є sensorId, а не кодами параметрів
         for (var entry : request.values().entrySet()) {
 
-            String parameterCode = entry.getKey()
-                    .trim()
-                    .toLowerCase(Locale.ROOT);
-
+            String sensorId = entry.getKey().trim();
             JsonNode value = entry.getValue();
 
-            // Захищаємося від однакових кодів після нормалізації
-            if (!processedCodes.add(parameterCode)) {
+            if (sensorId.isBlank()) {
                 throw new EntityValidationException(
-                        "Duplicate parameter code: " + parameterCode
+                        "Sensor ID cannot be empty"
+                );
+            }
+
+            if (!processedSensorIds.add(sensorId)) {
+                throw new EntityValidationException(
+                        "Duplicate sensor ID: " + sensorId
                 );
             }
 
             if (value == null || value.isNull()) {
                 throw new EntityValidationException(
-                        "Value cannot be null for parameter: "
-                                + parameterCode
+                        "Value cannot be null for sensor: " + sensorId
                 );
             }
 
-            // 4. Шукаємо параметр, призначений саме цьому пристрою
-            DeviceParameter assignment =
-                    deviceParameterRepository
-                            .findByDevice_DeviceIdAndParameterDefinition_Code(
-                                    deviceId,
-                                    parameterCode
-                            )
-                            .orElseThrow(() ->
-                                    new EntityNotFoundException(
-                                            "Parameter "
-                                                    + parameterCode
-                                                    + " is not assigned to device "
-                                                    + deviceId
-                                    )
-                            );
+            // 4. Знаходимо фізичний датчик
+            Sensor sensor = sensorRepository.findBySensorId(sensorId)
+                    .orElseThrow(() ->
+                            new EntityNotFoundException("Sensor with id " + sensorId + " not found")
+                    );
 
-            // 5. Перевіряємо, чи параметр увімкнений
-            if (!assignment.isEnabled()) {
+            // 5. Перевіряємо, чи датчик належить цьому ESP32
+            if (!sensor.getDevice().getDeviceId().equals(deviceId)) {
                 throw new EntityValidationException(
-                        "Parameter " + parameterCode
-                                + " is disabled for device " + deviceId
+                        "Sensor " + sensorId
+                                + " does not belong to device " + deviceId
                 );
             }
-            if (assignment.getSensor() != null
-                    && !assignment.getSensor().isEnabled()) {
 
+            // 6. Перевіряємо стан датчика
+            if (!sensor.isEnabled()) {
                 throw new EntityValidationException(
-                        "Sensor "
-                                + assignment.getSensor().getSensorId()
-                                + " is disabled"
+                        "Sensor " + sensorId + " is disabled"
                 );
             }
 
-            // 6. Перевіряємо тип і готуємо значення для збереження
+            // 7. Перевіряємо наявність призначеного параметра
+            if (sensor.getParameterDefinition() == null) {
+                throw new EntityValidationException(
+                        "Sensor " + sensorId
+                                + " has no parameter definition"
+                );
+            }
+
+            // 8. Тип значення визначається через параметр датчика
             ParameterDataType dataType =
-                    assignment.getParameterDefinition().getParameterDataType();
+                    sensor.getParameterDefinition().getParameterDataType();
 
             BigDecimal numericValue = null;
             Boolean booleanValue = null;
@@ -124,8 +122,8 @@ public class TelemetryServiceImpl implements TelemetryService {
                 case NUMBER -> {
                     if (!value.isNumber()) {
                         throw new EntityValidationException(
-                                "Parameter " + parameterCode
-                                        + " must be a number"
+                                "Sensor " + sensorId
+                                        + " expects a numeric value"
                         );
                     }
 
@@ -135,8 +133,8 @@ public class TelemetryServiceImpl implements TelemetryService {
                 case BOOLEAN -> {
                     if (!value.isBoolean()) {
                         throw new EntityValidationException(
-                                "Parameter " + parameterCode
-                                        + " must be a boolean"
+                                "Sensor " + sensorId
+                                        + " expects a boolean value"
                         );
                     }
 
@@ -144,28 +142,27 @@ public class TelemetryServiceImpl implements TelemetryService {
                 }
 
                 case STRING -> {
-                    if (!value.isString()) {
+                    if (!value.isTextual()) {
                         throw new EntityValidationException(
-                                "Parameter " + parameterCode
-                                        + " must be a string"
+                                "Sensor " + sensorId
+                                        + " expects a string value"
                         );
                     }
 
-                    textValue = value.stringValue();
+                    textValue = value.textValue();
 
                     if (textValue.length() > 2000) {
                         throw new EntityValidationException(
-                                "Value is too long for parameter: "
-                                        + parameterCode
+                                "Value is too long for sensor: " + sensorId
                         );
                     }
                 }
             }
 
-            // 7. Формуємо запис, але поки не зберігаємо його
+            // 9. Зберігаємо посилання на фізичний датчик
             readings.add(
                     new TelemetryReading(
-                            assignment,
+                            sensor,
                             numericValue,
                             booleanValue,
                             textValue,
@@ -174,17 +171,21 @@ public class TelemetryServiceImpl implements TelemetryService {
             );
         }
 
-        // 8. Зберігаємо записи лише після успішної перевірки всіх значень
+        // Записи зберігаємо лише після перевірки всіх значень
         telemetryReadingRepository.saveAll(readings);
 
         return readings.size();
     }
 
     @Override
-    public List<TelemetryReadingResponse> getTelemetryReadings(String deviceId) {
+    public List<TelemetryReadingResponse> getTelemetryReadings(
+            String deviceId
+    ) {
         var device = findDevice(deviceId);
 
-        return telemetryReadingRepository.findTop100ByDeviceParameter_Device_DeviceIdOrderByReceivedAtDesc(device.getDeviceId()).stream()
+        return telemetryReadingRepository
+                .findTop100BySensor_Device_DeviceIdOrderByReceivedAtDesc(
+                        device.getDeviceId()).stream()
                 .map(telemetryReadingMapper::toTelemetryReadingResponse)
                 .toList();
     }

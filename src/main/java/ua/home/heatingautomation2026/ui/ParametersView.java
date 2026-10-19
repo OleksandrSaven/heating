@@ -16,13 +16,9 @@ import ua.home.heatingautomation2026.dto.ParameterDefinitionDto;
 import ua.home.heatingautomation2026.dto.ParameterDefinitionRegistrationDto;
 import ua.home.heatingautomation2026.enam.ParameterDataType;
 import ua.home.heatingautomation2026.entity.Device;
-import ua.home.heatingautomation2026.entity.DeviceParameter;
-import ua.home.heatingautomation2026.entity.Sensor;
 import ua.home.heatingautomation2026.mapper.ParameterDefinitionMapper;
-import ua.home.heatingautomation2026.service.DeviceParameterService;
 import ua.home.heatingautomation2026.service.DeviceService;
 import ua.home.heatingautomation2026.service.ParameterDefinitionService;
-import ua.home.heatingautomation2026.service.SensorService;
 
 import java.util.List;
 
@@ -33,8 +29,6 @@ public class ParametersView extends VerticalLayout {
     private final ParameterDefinitionService parameterDefinitionService;
     private final ParameterDefinitionMapper parameterDefinitionMapper;
     private final DeviceService deviceService;
-    private final DeviceParameterService deviceParameterService;
-    private final SensorService sensorService;
 
      final Grid<ParameterDefinitionDto> parametersGrid =
             new Grid<>(ParameterDefinitionDto.class, false);
@@ -59,24 +53,14 @@ public class ParametersView extends VerticalLayout {
     private final ComboBox<Device> sensorDeviceSelect =
             new ComboBox<>("Контролер ESP32");
 
-    private final ComboBox<DeviceParameter> sensorAssignmentSelect =
-            new ComboBox<>("Призначений параметр");
-
-    private final ComboBox<Sensor> sensorSelect =
-            new ComboBox<>("Фізичний датчик");
-
     public ParametersView(
             ParameterDefinitionService parameterDefinitionService,
             ParameterDefinitionMapper parameterDefinitionMapper,
-            DeviceService deviceService,
-            DeviceParameterService deviceParameterService,
-            SensorService sensorService
+            DeviceService deviceService
     ) {
         this.parameterDefinitionService = parameterDefinitionService;
         this.parameterDefinitionMapper = parameterDefinitionMapper;
         this.deviceService = deviceService;
-        this.deviceParameterService = deviceParameterService;
-        this.sensorService = sensorService;
 
         setSizeFull();
         setPadding(false);
@@ -88,18 +72,12 @@ public class ParametersView extends VerticalLayout {
         configureParametersGrid();
         configureParameterForm();
         configureAssignmentForm();
-        configureSensorBindingForm();
-
         add(
                 title,
                 new H2("Каталог параметрів"),
                 parametersGrid,
                 new H2("Створити параметр"),
-                createParameterForm(),
-                new H2("Призначити параметр пристрою"),
-                createAssignmentForm(),
-                new H2("Прив'язати фізичний датчик"),
-                createSensorBindingForm()
+                createParameterForm()
         );
 
         refreshData();
@@ -144,7 +122,7 @@ public class ParametersView extends VerticalLayout {
                 .setFlexGrow(2);
 
         parametersGrid.setWidthFull();
-        parametersGrid.setHeight("300px");
+        parametersGrid.setHeight("200px");
     }
 
     private void configureParameterForm() {
@@ -213,29 +191,6 @@ public class ParametersView extends VerticalLayout {
         parameterSelect.setWidthFull();
     }
 
-    private FormLayout createAssignmentForm() {
-
-        FormLayout form = new FormLayout();
-        form.addClassName("responsive-form");
-
-        form.add(deviceSelect, parameterSelect);
-
-        form.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("700px", 2)
-        );
-
-        Button assignButton = new Button(
-                "Призначити параметр",
-                event -> assignParameter()
-        );
-
-        form.add(assignButton);
-        form.setColspan(assignButton, 2);
-
-        return form;
-    }
-
     private void createParameter() {
 
         String code = codeField.getValue();
@@ -281,47 +236,6 @@ public class ParametersView extends VerticalLayout {
         }
     }
 
-    private void assignParameter() {
-
-        Device device = deviceSelect.getValue();
-        ParameterDefinitionDto parameter =
-                parameterSelect.getValue();
-
-        if (device == null || parameter == null) {
-
-            Notification.show(
-                    "Вибери пристрій і параметр",
-                    3000,
-                    Notification.Position.BOTTOM_START
-            );
-
-            return;
-        }
-
-        try {
-            deviceParameterService.assignParameter(
-                    device.getDeviceId(),
-                    parameter.code()
-            );
-
-            Notification.show(
-                    "Параметр призначено пристрою "
-                            + device.getDeviceId(),
-                    3000,
-                    Notification.Position.BOTTOM_START
-            );
-
-        } catch (RuntimeException ex) {
-
-            Notification.show(
-                    "Не вдалося призначити параметр: "
-                            + ex.getMessage(),
-                    5000,
-                    Notification.Position.BOTTOM_START
-            );
-        }
-    }
-
     private void refreshData() {
 
         List<ParameterDefinitionDto> parameters =
@@ -343,133 +257,5 @@ public class ParametersView extends VerticalLayout {
         descriptionField.clear();
         dataTypeField.clear();
         unitField.clear();
-    }
-
-    private void configureSensorBindingForm() {
-
-        sensorDeviceSelect.setItems(deviceService.findAllDevices());
-
-        sensorDeviceSelect.setItemLabelGenerator(
-                device -> device.getDeviceName()
-                        + " (" + device.getDeviceId() + ")"
-        );
-
-        sensorAssignmentSelect.setItemLabelGenerator(
-                assignment -> assignment.getParameterDefinition().getName()
-                        + " ("
-                        + assignment.getParameterDefinition().getCode()
-                        + ")"
-        );
-
-        sensorSelect.setItemLabelGenerator(
-                sensor -> sensor.getSensorName()
-                        + " (" + sensor.getSensorId() + ")"
-        );
-
-        sensorDeviceSelect.setRequired(true);
-        sensorAssignmentSelect.setRequired(true);
-        sensorSelect.setRequired(true);
-
-        sensorDeviceSelect.setWidthFull();
-        sensorAssignmentSelect.setWidthFull();
-        sensorSelect.setWidthFull();
-
-        sensorDeviceSelect.addValueChangeListener(
-                event -> refreshSensorOptions()
-        );
-
-        refreshSensorOptions();
-    }
-
-    private void refreshSensorOptions() {
-
-        Device device = sensorDeviceSelect.getValue();
-
-        sensorAssignmentSelect.clear();
-        sensorSelect.clear();
-
-        if (device == null) {
-            sensorAssignmentSelect.setItems(List.of());
-            sensorSelect.setItems(List.of());
-            return;
-        }
-
-        List<DeviceParameter> assignments =
-                deviceParameterService.getDeviceParameters(
-                        device.getDeviceId()
-                );
-
-        sensorAssignmentSelect.setItems(assignments);
-
-        List<Sensor> sensors =
-                sensorService.findEnabledByDeviceId(
-                        device.getDeviceId()
-                );
-
-        sensorSelect.setItems(sensors);
-    }
-
-    private FormLayout createSensorBindingForm() {
-
-        FormLayout form = new FormLayout();
-        form.addClassName("responsive-form");
-
-        form.add(
-                sensorDeviceSelect,
-                sensorAssignmentSelect,
-                sensorSelect
-        );
-
-        form.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("700px", 2)
-        );
-
-        Button bindButton = new Button(
-                "Прив'язати датчик",
-                event -> bindSensor()
-        );
-
-        form.add(bindButton);
-
-        return form;
-    }
-
-    private void bindSensor() {
-
-        Device device = sensorDeviceSelect.getValue();
-        DeviceParameter assignment = sensorAssignmentSelect.getValue();
-        Sensor sensor = sensorSelect.getValue();
-
-        if (device == null || assignment == null || sensor == null) {
-            Notification.show(
-                    "Вибери контролер, параметр і фізичний датчик",
-                    3000,
-                    Notification.Position.BOTTOM_START
-            );
-            return;
-        }
-
-        try {
-            deviceParameterService.assignSensor(
-                    device.getDeviceId(),
-                    assignment.getParameterDefinition().getCode(),
-                    sensor.getSensorId()
-            );
-
-            Notification.show(
-                    "Датчик успішно прив'язано до параметра",
-                    3000,
-                    Notification.Position.BOTTOM_START
-            );
-
-        } catch (RuntimeException ex) {
-
-            Notification.show(
-                    "Не вдалося прив'язати датчик: " + ex.getMessage(),
-                    5000,
-                    Notification.Position.BOTTOM_START
-            );
-        }
     }
 }
