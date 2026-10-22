@@ -31,4 +31,10 @@ public interface SensorRepository extends JpaRepository<Sensor, UUID> {
     List<Sensor> findAllByDevice_DeviceIdAndEnabledTrueOrderBySensorIdAsc(
             String deviceId
     );
+
+    @EntityGraph(attributePaths = {
+            "parameterDefinition",
+            "device"
+    })
+    Optional<Sensor> findWithDetailsBySensorId(String sensorId);
 }

@@ -219,8 +219,10 @@ public class DevicesView extends VerticalLayout {
 
         DeviceConnectivityStatus status =
                 connectivityService.getDeviceConnectivityStatus(
-                        device.getLastHeartbeat()
+                        device.getDeviceId()
                 );
+
+
 
         return switch (status) {
             case ONLINE -> "🟢 Онлайн";

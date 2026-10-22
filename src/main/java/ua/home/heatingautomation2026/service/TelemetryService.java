@@ -10,4 +10,10 @@ public interface TelemetryService {
     int ingest(String deviceId, TelemetryRequest request);
 
     List<TelemetryReadingResponse> getTelemetryReadings(String deviceId);
+
+    List<TelemetryReadingResponse> getTelemetryReadings();
+
+    List<TelemetryReadingResponse> getSensorTelemetryReadings(
+            String sensorId
+    );
 }
