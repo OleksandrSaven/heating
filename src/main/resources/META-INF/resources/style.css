@@ -1,5 +1,6 @@
-/* Загальні налаштування */
-
+ /* =========================================
+       Загальні налаштування
+       ========================================= */
 html,
 body {
     width: 100%;
@@ -17,7 +18,9 @@ vaadin-app-layout {
     min-height: 100vh;
 }
 
-/* Загальний контейнер кожної сторінки */
+/* =========================================
+   Загальний контейнер сторінок
+   ========================================= */
 
 .page-view {
     box-sizing: border-box;
@@ -31,9 +34,12 @@ vaadin-app-layout {
 
 .page-view > * {
     min-width: 0;
+    box-sizing: border-box;
 }
 
-/* Заголовки сторінок */
+/* =========================================
+   Заголовки сторінок
+   ========================================= */
 
 .page-header {
     gap: 12px;
@@ -48,7 +54,152 @@ vaadin-app-layout {
     overflow-wrap: anywhere;
 }
 
-/* Картки статистики на головній сторінці */
+/* =========================================
+   Головна сторінка Dashboard
+   ========================================= */
+
+.dashboard-view {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1500px;
+    min-width: 0;
+    margin-inline: auto;
+    padding: 24px;
+    gap: 20px;
+}
+
+/* Заголовок і кнопка оновлення */
+
+.dashboard-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.dashboard-title {
+    min-width: 0;
+    margin: 0;
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.dashboard-refresh {
+    flex-shrink: 0;
+}
+
+/* Заголовок списку пристроїв */
+
+.devices-section-title {
+    margin: 8px 0 0;
+    font-size: 1.35rem;
+    line-height: 1.4;
+}
+
+/* =========================================
+   Список пристроїв
+   ========================================= */
+
+.devices-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+}
+
+/* =========================================
+   Картка пристрою
+   ========================================= */
+
+.device-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--lumo-contrast-10pct);
+    border-radius: 12px;
+    background: var(--lumo-base-color);
+    box-shadow: var(--lumo-box-shadow-xs);
+}
+
+/* Значок пристрою */
+
+.device-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+}
+
+/* Розмір іконки Vaadin */
+
+.device-icon vaadin-icon {
+    width: 22px;
+    height: 22px;
+}
+
+/* Пристрій онлайн — зелений */
+
+.device-icon-active {
+    color: var(--lumo-success-text-color);
+    background: var(--lumo-success-color-10pct);
+}
+
+/* Пристрій офлайн — червоний */
+
+.device-icon-inactive {
+    color: var(--lumo-error-text-color);
+    background: var(--lumo-error-color-10pct);
+}
+
+/* Назва пристрою */
+
+.device-name {
+    min-width: 0;
+    margin: 0;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* =========================================
+   Порожній список і помилки
+   ========================================= */
+
+.devices-empty,
+.devices-error {
+    grid-column: 1 / -1;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 24px;
+    border: 1px solid var(--lumo-contrast-10pct);
+    border-radius: 12px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.devices-empty {
+    color: var(--lumo-secondary-text-color);
+}
+
+.devices-error {
+    color: var(--lumo-error-text-color);
+}
+
+/* =========================================
+   Статистика інших сторінок
+   ========================================= */
 
 .stats-grid {
     display: grid;
@@ -58,6 +209,8 @@ vaadin-app-layout {
 }
 
 .stat-card {
+    display: flex;
+    flex-direction: column;
     box-sizing: border-box;
     min-width: 0;
     padding: 20px;
@@ -76,7 +229,9 @@ vaadin-app-layout {
     font-size: 1.8rem;
 }
 
-/* Таблиці */
+/* =========================================
+   Таблиці
+   ========================================= */
 
 .responsive-grid {
     width: 100%;
@@ -84,7 +239,9 @@ vaadin-app-layout {
     min-width: 0;
 }
 
-/* Форми */
+/* =========================================
+   Форми
+   ========================================= */
 
 .responsive-form {
     width: 100%;
@@ -99,14 +256,19 @@ vaadin-app-layout {
     box-sizing: border-box;
 }
 
-/* Групи кнопок у таблицях */
+/* =========================================
+   Групи кнопок
+   ========================================= */
 
 .row-actions {
+    display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
 
-/* Фільтри сторінки історії */
+/* =========================================
+   Фільтри
+   ========================================= */
 
 .filter-row {
     display: flex;
@@ -116,15 +278,21 @@ vaadin-app-layout {
     width: 100%;
 }
 
-/* Базовий розмір сенсорних елементів */
+/* =========================================
+   Базові розміри кнопок
+   ========================================= */
 
-.page-view vaadin-button {
-    min-height: 40px;
+.page-view vaadin-button,
+.dashboard-view vaadin-button {
+    min-height: 44px;
 }
 
-/* Планшети */
+/* =========================================
+   Планшети
+   ========================================= */
 
 @media (max-width: 1024px) {
+
     .page-view {
         padding: 18px;
         gap: 14px;
@@ -138,11 +306,30 @@ vaadin-app-layout {
     .stat-card {
         padding: 16px;
     }
+
+    .dashboard-view {
+        padding: 18px;
+        gap: 16px;
+    }
+
+    .devices-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .device-card {
+        padding: 16px;
+    }
 }
 
-/* Телефони */
+/* =========================================
+   Телефони
+   ========================================= */
 
 @media (max-width: 640px) {
+
+    /* Загальні сторінки */
+
     .page-view {
         padding: 12px;
         gap: 12px;
@@ -168,7 +355,7 @@ vaadin-app-layout {
         overflow-wrap: anywhere;
     }
 
-    /* Заголовок і кнопка не стискаються в один ряд */
+    /* Заголовки та кнопки інших сторінок */
 
     .page-header {
         flex-direction: column;
@@ -185,7 +372,7 @@ vaadin-app-layout {
         width: 100%;
     }
 
-    /* На телефоні статистика у дві колонки */
+    /* Статистика інших сторінок */
 
     .stats-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -206,7 +393,63 @@ vaadin-app-layout {
         font-size: 1.4rem;
     }
 
-    /* Форми та фільтри займають доступну ширину */
+    /* Головна сторінка */
+
+    .dashboard-view {
+        padding: 12px;
+        gap: 14px;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .dashboard-title {
+        font-size: 1.4rem;
+        line-height: 1.3;
+    }
+
+    .dashboard-refresh {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    /* Заголовок списку пристроїв */
+
+    .devices-section-title {
+        font-size: 1.2rem;
+        line-height: 1.4;
+    }
+
+    /* Одна картка на рядок */
+
+    .devices-list {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .device-card {
+        padding: 12px;
+        border-radius: 10px;
+    }
+
+    .device-icon {
+        width: 38px;
+        height: 38px;
+    }
+
+    .device-icon vaadin-icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    .device-name {
+        font-size: 0.95rem;
+    }
+
+    /* Форми та фільтри */
 
     .filter-row {
         flex-direction: column;
@@ -227,7 +470,7 @@ vaadin-app-layout {
         box-sizing: border-box;
     }
 
-    /* Кнопки зручно натискати пальцем */
+    /* Кнопки */
 
     .page-view vaadin-button {
         min-height: 44px;
@@ -237,10 +480,199 @@ vaadin-app-layout {
         flex: 1 1 120px;
     }
 
-    /* Зменшуємо горизонтальні відступи в таблицях */
+    /* Компактні таблиці */
 
     .responsive-grid::part(cell),
     .responsive-grid::part(header-cell) {
         padding-inline: 8px;
+    }
+
+    /* Загальний контейнер сторінки */
+    .device-details-view {
+        box-sizing: border-box;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* Шапка */
+    .device-page-header {
+        box-sizing: border-box;
+    }
+
+    .device-title-row {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .device-page-title {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        margin: 0;
+        font-size: 1.8rem;
+    }
+
+    .device-back-button {
+        flex-shrink: 0;
+    }
+
+    .device-actions-row {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .device-action-button {
+        min-height: 44px;
+    }
+
+    /* Інформація про пристрій */
+    .device-info-card {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 18px;
+        border: 1px solid var(--lumo-contrast-10pct);
+        border-radius: 12px;
+        background: var(--lumo-base-color);
+        overflow-wrap: anywhere;
+    }
+
+    .device-info-card h3 {
+        margin-top: 0;
+    }
+
+    .device-info-text,
+    .device-status-text,
+    .device-heartbeat-text {
+        margin: 0;
+        overflow-wrap: anywhere;
+    }
+
+    /* Секція датчиків */
+    .sensors-section {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .sensors-section-title {
+        margin-bottom: 12px;
+    }
+
+    /* За замовчуванням показуємо таблицю */
+    .sensor-cards-container {
+        display: none;
+    }
+
+    .responsive-grid {
+        max-width: 100%;
+    }
+
+    /* Картки датчиків */
+    .sensor-mobile-card {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+        padding: 16px;
+        border: 1px solid var(--lumo-contrast-10pct);
+        border-radius: 12px;
+        background: var(--lumo-base-color);
+        overflow-wrap: anywhere;
+        transition: background-color 0.15s ease;
+    }
+
+    .sensor-mobile-card:hover {
+        background: var(--lumo-contrast-5pct);
+    }
+
+    .sensor-mobile-card:active {
+        background: var(--lumo-contrast-10pct);
+    }
+
+    .sensor-mobile-name {
+        margin: 0 0 12px;
+        font-size: 1.1rem;
+        overflow-wrap: anywhere;
+    }
+
+    .sensor-mobile-card p {
+        margin: 6px 0;
+        overflow-wrap: anywhere;
+    }
+
+    .sensor-status-enabled {
+        display: inline-block;
+        margin-top: 8px;
+        color: var(--lumo-success-text-color);
+    }
+
+    .sensor-status-disabled {
+        display: inline-block;
+        margin-top: 8px;
+        color: var(--lumo-error-text-color);
+    }
+
+    .sensor-open-hint {
+        display: block;
+        margin-top: 12px;
+        color: var(--lumo-primary-text-color);
+        font-size: 0.9rem;
+    }
+
+    .sensors-empty-message {
+        padding: 16px;
+    }
+
+    /* Мобільні телефони */
+    @media (max-width: 600px) {
+        .device-details-view {
+            padding: 12px !important;
+            gap: 16px;
+        }
+
+        .device-title-row {
+            align-items: stretch;
+        }
+
+        .device-page-title {
+            width: 100%;
+            font-size: 1.4rem;
+            line-height: 1.3;
+        }
+
+        .device-back-button {
+            max-width: 100%;
+        }
+
+        .device-actions-row {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .device-action-button {
+            width: 100%;
+            min-height: 46px;
+        }
+
+        .device-info-card {
+            padding: 14px;
+        }
+
+        .device-info-card h3,
+        .sensors-section-title {
+            font-size: 1.15rem;
+        }
+
+        /* Приховуємо таблицю на телефоні */
+        .responsive-grid {
+            display: none;
+        }
+
+        /* Показуємо картки */
+        .sensor-cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            min-width: 0;
+        }
     }
 }

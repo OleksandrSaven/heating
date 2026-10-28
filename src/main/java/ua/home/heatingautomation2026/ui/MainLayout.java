@@ -11,7 +11,7 @@ public class MainLayout extends AppLayout {
     public MainLayout() {
 
         // Заголовок застосунку
-        H2 appName = new H2("Home Heating");
+        H2 appName = new H2("Home Assistant");
 
         appName.getStyle()
                 .set("font-size", "1.2rem")

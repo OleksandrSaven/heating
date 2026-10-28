@@ -1,0 +1,555 @@
+/* Full-page boiler-room SCADA dashboard */
+.boiler-room-view {
+    --br-bg: #111c2d;
+    --br-panel: #111c2d;
+    --br-panel-raised: #111c2d;
+    --br-border: #283950;
+    --br-text: #edf4fc;
+    --br-muted: #91a4ba;
+    --br-hot: #ff684f;
+    --br-cold: #36b8ed;
+
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: calc(100vh - 54px);
+    padding: 24px clamp(16px, 2vw, 32px) 28px;
+    gap: 20px;
+    color: var(--br-text);
+    background: var(--br-panel);
+    font-family: Inter, "Segoe UI", sans-serif;
+}
+
+.boiler-room-view * {
+    box-sizing: border-box;
+}
+
+/* Header */
+.boiler-room-view .br-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    width: 100%;
+    min-width: 0;
+    padding: 4px 2px 18px;
+    border-bottom: 1px solid var(--br-border);
+}
+
+.boiler-room-view .br-title-group {
+    min-width: 0;
+}
+
+.boiler-room-view .br-title {
+    margin: 0;
+    color: var(--br-text);
+    font-size: clamp(1.7rem, 2.3vw, 2.35rem);
+    font-weight: 750;
+    letter-spacing: -.045em;
+    line-height: 1.15;
+}
+
+.boiler-room-view .br-subtitle {
+    margin: 8px 0 0;
+    color: var(--br-muted);
+    font-size: .95rem;
+}
+
+.boiler-room-view .br-system-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 190, 90, .25);
+    border-radius: 12px;
+    background: rgba(255, 190, 90, .07);
+}
+
+.boiler-room-view .br-status-dot {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 10px;
+    border-radius: 50%;
+    background: #f5b94f;
+    box-shadow: 0 0 0 5px rgba(245, 185, 79, .11);
+}
+
+.boiler-room-view .br-status-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.boiler-room-view .br-status-title {
+    color: #ffd17c;
+    font-size: .76rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+}
+
+.boiler-room-view .br-status-description {
+    color: var(--br-muted);
+    font-size: .78rem;
+}
+
+/* Main layout */
+.boiler-room-view .br-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(285px, 320px);
+    align-items: start;
+    gap: 20px;
+    width: 100%;
+    min-width: 0;
+}
+
+/* Cards */
+.boiler-room-view .br-card {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--br-border);
+    border-radius: 16px;
+    background: var(--br-panel);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, .15);
+}
+
+.boiler-room-view .br-schematic-card {
+    width: 100%;
+    min-width: 0;
+    padding: 20px;
+}
+
+.boiler-room-view .br-card-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 2px 2px 16px;
+}
+
+.boiler-room-view .br-section-title {
+    margin: 0;
+    color: var(--br-text);
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.boiler-room-view .br-section-description {
+    margin: 5px 0 0;
+    color: var(--br-muted);
+    font-size: .82rem;
+}
+
+/* Hot / cold legend */
+.boiler-room-view .br-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+}
+
+.boiler-room-view .br-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #b7c6d8;
+    font-size: .8rem;
+    white-space: nowrap;
+}
+
+.boiler-room-view .br-legend-line {
+    display: inline-block;
+    width: 25px;
+    height: 4px;
+    border-radius: 99px;
+}
+
+.boiler-room-view .br-legend-hot {
+    background: var(--br-hot);
+    box-shadow: 0 0 12px rgba(255, 104, 79, .35);
+}
+
+.boiler-room-view .br-legend-cold {
+    background: var(--br-cold);
+    box-shadow: 0 0 12px rgba(54, 184, 237, .3);
+}
+
+/* Schematic */
+.boiler-room-view .br-schematic {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #26384d;
+    border-radius: 12px;
+    background: var(--br-panel);
+    line-height: 0;
+}
+
+.boiler-room-view .br-svg {
+    display: block;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-width: 0;
+}
+
+/* Right-side information panel */
+.boiler-room-view .br-side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
+
+.boiler-room-view .br-info-card {
+    padding: 18px;
+}
+
+.boiler-room-view .br-info-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 14px;
+}
+
+.boiler-room-view .br-info-title {
+    color: var(--br-text);
+    font-size: 1rem;
+    font-weight: 750;
+}
+
+.boiler-room-view .br-info-description {
+    color: var(--br-muted);
+    font-size: .78rem;
+}
+
+/* Reading lists */
+.boiler-room-view .br-reading-list,
+.boiler-room-view .br-pump-list,
+.boiler-room-view .br-system-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.boiler-room-view .br-reading-row,
+.boiler-room-view .br-system-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 38px;
+    border-top: 1px solid rgba(145, 164, 186, .12);
+}
+
+.boiler-room-view .br-reading-name,
+.boiler-room-view .br-system-label {
+    color: #b6c5d7;
+    font-size: .82rem;
+}
+
+.boiler-room-view .br-reading-number {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.boiler-room-view .br-reading-value {
+    color: var(--br-text);
+    font-size: 1.08rem;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+}
+
+.boiler-room-view .br-reading-unit {
+    color: var(--br-muted);
+    font-size: .72rem;
+}
+
+/* Pumps */
+.boiler-room-view .br-pump-row {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    border-top: 1px solid rgba(145, 164, 186, .12);
+}
+
+.boiler-room-view .br-pump-indicator {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #65758a;
+    box-shadow: 0 0 0 4px rgba(101, 117, 138, .12);
+}
+
+.boiler-room-view .br-pump-name {
+    color: #c3cfdd;
+    font-size: .82rem;
+}
+
+.boiler-room-view .br-pump-state {
+    padding: 4px 7px;
+    border: 1px solid rgba(145, 164, 186, .18);
+    border-radius: 6px;
+    color: #a8b7c8;
+    background: rgba(145, 164, 186, .07);
+    font-size: .68rem;
+    white-space: nowrap;
+}
+
+/* System information */
+.boiler-room-view .br-system-value {
+    color: #e9f1fa;
+    font-size: .83rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Footer and events */
+.boiler-room-view .br-footer {
+    width: 100%;
+    min-width: 0;
+    padding: 18px 20px;
+    border: 1px solid var(--br-border);
+    border-radius: 16px;
+    background: var(--br-panel);
+}
+
+.boiler-room-view .br-footer-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.boiler-room-view .br-footer-title {
+    color: var(--br-text);
+    font-size: 1rem;
+    font-weight: 750;
+}
+
+.boiler-room-view .br-event-badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    color: #f2c77a;
+    background: rgba(245, 185, 79, .1);
+    font-size: .7rem;
+}
+
+.boiler-room-view .br-event {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 13px 14px;
+    border: 1px solid rgba(245, 185, 79, .16);
+    border-radius: 10px;
+    background: rgba(245, 185, 79, .045);
+}
+
+.boiler-room-view .br-event-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 23px;
+    height: 23px;
+    flex: 0 0 23px;
+    border: 1px solid rgba(245, 185, 79, .4);
+    border-radius: 50%;
+    color: #f2c77a;
+    font-size: .8rem;
+    font-weight: 800;
+}
+
+.boiler-room-view .br-event-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.boiler-room-view .br-event-title {
+    color: #f0d39b;
+    font-size: .84rem;
+    font-weight: 700;
+}
+
+.boiler-room-view .br-event-description {
+    color: var(--br-muted);
+    font-size: .8rem;
+    line-height: 1.5;
+}
+
+/* Large desktop monitors */
+@media (min-width: 1600px) {
+    .boiler-room-view {
+        padding-right: 28px;
+        padding-left: 28px;
+    }
+
+    .boiler-room-view .br-main-grid {
+        grid-template-columns: minmax(0, 1fr) 350px;
+        gap: 24px;
+    }
+
+    .boiler-room-view .br-schematic-card {
+        padding: 24px;
+    }
+
+    .boiler-room-view .br-section-title {
+        font-size: 1.3rem;
+    }
+}
+
+/* Extra-wide monitors */
+@media (min-width: 1920px) {
+    .boiler-room-view .br-main-grid {
+        grid-template-columns: minmax(0, 1fr) 370px;
+        gap: 26px;
+    }
+
+    .boiler-room-view .br-schematic-card {
+        padding: 26px;
+    }
+}
+
+/* Tablet and smaller desktop windows */
+@media (max-width: 1100px) {
+    .boiler-room-view .br-main-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .boiler-room-view .br-side-panel {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+
+    .boiler-room-view .br-side-panel .br-info-card:last-child {
+        grid-column: 1 / -1;
+    }
+}
+
+/* Phones */
+@media (max-width: 700px) {
+    .boiler-room-view {
+        padding: 16px 12px 22px;
+        gap: 14px;
+    }
+
+    .boiler-room-view .br-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .boiler-room-view .br-system-status {
+        width: 100%;
+    }
+
+    .boiler-room-view .br-schematic-card {
+        padding: 12px;
+    }
+
+    .boiler-room-view .br-card-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .boiler-room-view .br-schematic {
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .boiler-room-view .br-svg {
+        width: 680px;
+        max-width: none;
+        min-width: 680px;
+        height: auto;
+    }
+
+    .boiler-room-view .br-side-panel {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .boiler-room-view .br-side-panel .br-info-card:last-child {
+        grid-column: auto;
+    }
+
+    .boiler-room-view .br-footer {
+        padding: 15px;
+    }
+    /* =========================================================
+   ACCUMULATOR CHARGE
+   ========================================================= */
+
+    .br-charge-card {
+        gap: 16px;
+    }
+
+    .br-charge-indicator {
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        gap: 12px;
+        height: 180px;
+        padding: 8px 0;
+    }
+
+    .br-charge-gauge {
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        width: 66px;
+        height: 100%;
+        overflow: hidden;
+        border: 2px solid var(--lumo-contrast-30pct);
+        border-radius: 12px;
+        background: var(--lumo-contrast-5pct);
+        box-sizing: border-box;
+    }
+
+    .br-charge-fill {
+        width: 100%;
+        min-height: 0;
+        border-radius: 6px 6px 0 0;
+        transition:
+                height 0.5s ease,
+                background 0.5s ease;
+    }
+
+    .br-charge-scale {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 0 0 0 4px;
+        font-size: 0.8rem;
+        color: var(--lumo-secondary-text-color);
+    }
+
+    .br-charge-percent {
+        font-size: 2rem;
+        font-weight: 700;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .br-charge-status {
+        font-size: 1rem;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .br-charge-temperatures {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+        padding-top: 12px;
+        border-top: 1px solid var(--lumo-contrast-10pct);
+        font-size: 0.85rem;
+        color: var(--lumo-secondary-text-color);
+    }
+}
