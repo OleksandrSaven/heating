@@ -1,0 +1,64 @@
+/* Загальний фон застосунку */
+.main-layout {
+    background-color: var(--lumo-base-color);
+    color: var(--lumo-body-text-color);
+}
+
+/* Верхня панель */
+.main-layout vaadin-app-layout::part(navbar) {
+    background-color: #1e293b;
+    color: #f8fafc;
+    border-bottom: 1px solid #334155;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+}
+
+/* Назва застосунку */
+.main-layout-title {
+    color: #f8fafc;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0 0 0 0.5rem;
+    letter-spacing: 0.02em;
+}
+
+/* Кнопка меню */
+.main-layout-drawer-toggle {
+    color: #f8fafc;
+}
+
+/* Бокове меню */
+.main-layout vaadin-drawer {
+    background-color: #0f172a;
+    border-right: 1px solid #334155;
+}
+
+/* Навігація */
+.main-layout-navigation {
+    padding: 0.75rem 0.5rem;
+}
+
+/* Пункти меню */
+.main-layout-navigation vaadin-side-nav-item {
+    color: #cbd5e1;
+    border-radius: 8px;
+    margin: 0.2rem 0;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Наведення */
+.main-layout-navigation vaadin-side-nav-item:hover {
+    background-color: #1e293b;
+    color: #ffffff;
+}
+
+/* Активний пункт меню */
+.main-layout-navigation vaadin-side-nav-item vaadin-side-nav-item-link[active] {
+    background-color: #2563eb;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+/* Основна область сторінки */
+.main-layout::part(content) {
+    background-color: var(--lumo-contrast-5pct);
+}

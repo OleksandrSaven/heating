@@ -6,25 +6,29 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.sidenav.SideNav;
 import com.vaadin.flow.component.sidenav.SideNavItem;
 
+import com.vaadin.flow.component.dependency.StyleSheet;
+
+@StyleSheet("context://style.css")
 public class MainLayout extends AppLayout {
 
     public MainLayout() {
+        addClassName("main-layout");
 
-        // Заголовок застосунку
-        H2 appName = new H2("Home Assistant");
+        // Назва застосунку
+        H2 appName = new H2("Heating Automation");
 
-        appName.getStyle()
-                .set("font-size", "1.2rem")
-                .set("margin", "0");
+        appName.addClassName("main-layout-title");
+
+        // Кнопка відкриття бокового меню
+        DrawerToggle drawerToggle = new DrawerToggle();
+        drawerToggle.addClassName("main-layout-drawer-toggle");
 
         // Верхня панель
-        addToNavbar(
-                new DrawerToggle(),
-                appName
-        );
+        addToNavbar(drawerToggle, appName);
 
         // Бокове меню
         SideNav navigation = new SideNav();
+        navigation.addClassName("main-layout-navigation");
 
         navigation.addItem(
                 new SideNavItem("Огляд", DashboardView.class)
@@ -37,13 +41,18 @@ public class MainLayout extends AppLayout {
         navigation.addItem(
                 new SideNavItem("Датчики", SensorsView.class)
         );
+
         navigation.addItem(
                 new SideNavItem("Параметри", ParametersView.class)
         );
 
+        navigation.addItem(
+                new SideNavItem("Котельня", BoilerRoomView.class)
+        );
+
         addToDrawer(navigation);
 
-        // Бокове меню займає повну висоту
+        // Бокове меню — основна навігаційна секція
         setPrimarySection(Section.DRAWER);
     }
 }

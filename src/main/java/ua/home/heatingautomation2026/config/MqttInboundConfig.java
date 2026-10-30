@@ -4,12 +4,15 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
+import org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessageHandler;
 
 import java.util.UUID;
 
@@ -47,6 +50,11 @@ public class MqttInboundConfig {
     }
 
     @Bean
+    public MessageChannel mqttOutboundChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
     public MqttPahoMessageDrivenChannelAdapter mqttInboundAdapter(
             MqttPahoClientFactory mqttClientFactory,
             MessageChannel mqttInputChannel,
@@ -54,19 +62,40 @@ public class MqttInboundConfig {
             @Value("${mqtt.topic.status}") String statusTopic) {
 
         String clientId =
-                "heating-automation-" + UUID.randomUUID();
+                "heating-automation-in-" + UUID.randomUUID();
 
         MqttPahoMessageDrivenChannelAdapter adapter =
                 new MqttPahoMessageDrivenChannelAdapter(
                         clientId,
                         mqttClientFactory,
                         telemetryTopic,
-                        statusTopic
+                        statusTopic,
+                        "heating/+/registration-status-request"
                 );
 
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInputChannel);
 
         return adapter;
+    }
+
+    @Bean
+    @ServiceActivator(inputChannel = "mqttOutboundChannel")
+    public MessageHandler mqttOutboundHandler(
+            MqttPahoClientFactory mqttClientFactory) {
+
+        String clientId =
+                "heating-automation-out-" + UUID.randomUUID();
+
+        MqttPahoMessageHandler handler =
+                new MqttPahoMessageHandler(
+                        clientId,
+                        mqttClientFactory
+                );
+
+        handler.setAsync(true);
+        handler.setDefaultQos(1);
+
+        return handler;
     }
 }

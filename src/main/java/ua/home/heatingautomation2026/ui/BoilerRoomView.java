@@ -12,7 +12,12 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.shared.Registration;
+import ua.home.heatingautomation2026.dto.TelemetryReadingResponse;
+import ua.home.heatingautomation2026.service.TelemetryService;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -26,59 +31,49 @@ public class BoilerRoomView extends VerticalLayout {
 
     private Registration pollRegistration;
 
-    // Твердопаливний котел
-    private double boilerSupply = 78.0;
-    private double boilerReturn = 62.0;
+    private static final String DEVICE_ID = "BOILER_ROOM_01";
 
-    // Димохід
-    private double flueTemperature = 145.0;
+    private final TelemetryService telemetryService;
 
-    // Теплоакумулятор
-    private double accumulatorTop = 75.0;
-    private double accumulatorZoneTop = 70.0;
-    private double accumulatorMiddle = 55.0;
-    private double accumulatorZoneBottom = 35.0;
-    private double accumulatorBottom = 35.0;
+    // Значення не вважаються відомими, доки контролер їх не передасть.
+    private double boilerSupply = Double.NaN;
+    private double boilerReturn = Double.NaN;
+    private double flueTemperature = Double.NaN;
 
-    // Радіатори
-    private double radiatorIn = 58.0;
-    private double radiatorOut = 30.0;
+    // П'ять зон теплоакумулятора: accumulator_01 ... accumulator_05.
+    private double accumulatorTop = Double.NaN;
+    private double accumulatorZoneTop = Double.NaN;
+    private double accumulatorMiddle = Double.NaN;
+    private double accumulatorZoneBottom = Double.NaN;
+    private double accumulatorBottom = Double.NaN;
 
-    // Тепла підлога
-    private double floorIn = 35.0;
-    private double floorOut = 28.0;
+    private double radiatorIn = Double.NaN;
+    private double radiatorOut = Double.NaN;
+    private double floorIn = Double.NaN;
+    private double floorOut = Double.NaN;
+    private double dhwSupply = Double.NaN;
+    private double dhwTemperature = Double.NaN;
+    private double systemPressure = Double.NaN;
+    private double electricBoilerSupply = Double.NaN;
+    private double electricBoilerReturn = Double.NaN;
 
-    // Бойлер ГВП
-    private double dhwSupply = 65.0;
-    private double dhwTemperature = 48.0;
+    // Ці стани не передаються поточним контролером — не виводимо їх як виміряні.
+    private boolean radiatorHeatRequest;
+    private boolean floorHeatRequest;
+    private boolean dhwHeatRequest;
+    private boolean electricBoilerOn;
+    private boolean electricBoilerHeatRequest;
 
-    // Запити на тепло від термостатів / контролера
-    private boolean radiatorHeatRequest = false;
-    private boolean floorHeatRequest = true;
-    private boolean dhwHeatRequest = false;
+    private boolean boilerPumpOn;
+    private boolean radiatorPumpOn;
+    private boolean floorPumpOn;
+    private boolean dhwPumpOn;
 
-    // Тестові стани насосів
-    private boolean boilerPumpOn = false;
-    private boolean radiatorPumpOn = false;
-    private boolean floorPumpOn = false;
-    private boolean dhwPumpOn = false;
+    private double accumulatorChargePercent = Double.NaN;
+    private Instant lastTelemetryAt;
 
-    // Інші показники
-    private double systemPressure = 1.5;
-
-    // Електричний котел 7,5 кВт
-    private double electricBoilerSupply = 25.0;
-    private double electricBoilerReturn = 20.0;
-
-    // Тестовий стан електрокотла
-    private boolean electricBoilerOn = false;
-
-    // Запит на нагрівання від електрокотла
-    private boolean electricBoilerHeatRequest = false;
-
-    // Заряд теплоакумулятора
-    private double accumulatorChargePercent;
-    private String accumulatorChargeStatus = "Очікування даних";
+    private Span statusTitle;
+    private Span statusDescription;
 
     // Елементи інтерфейсу
     private final Map<String, Span> temperatureValues =
@@ -90,7 +85,9 @@ public class BoilerRoomView extends VerticalLayout {
     private final Map<String, Span> systemValues =
             new LinkedHashMap<>();
 
-    public BoilerRoomView() {
+    public BoilerRoomView(TelemetryService telemetryService) {
+        this.telemetryService = telemetryService;
+
         addClassName("boiler-room-view");
 
         setSizeFull();
@@ -134,11 +131,10 @@ public class BoilerRoomView extends VerticalLayout {
         Div statusText = new Div();
         statusText.addClassName("br-status-copy");
 
-        Span statusTitle = new Span("ОЧІКУВАННЯ ДАНИХ");
+        statusTitle = new Span("ОЧІКУВАННЯ ДАНИХ");
         statusTitle.addClassName("br-status-title");
 
-        Span statusDescription =
-                new Span("Телеметрію ще не підключено");
+        statusDescription = new Span("Очікування телеметрії від контролера");
         statusDescription.addClassName("br-status-description");
 
         statusText.add(statusTitle, statusDescription);
@@ -230,7 +226,7 @@ public class BoilerRoomView extends VerticalLayout {
 
         card.add(sectionHeading(
                 "Температури",
-                "Поточні тестові показники"
+                "Поточні показники контролера"
         ));
 
         Div rows = new Div();
@@ -481,10 +477,7 @@ public class BoilerRoomView extends VerticalLayout {
         result.addClassName("br-system-value");
 
         if ("pressure".equals(key)) {
-            result.setText(
-                    String.format(Locale.US, "%.1f %s",
-                            systemPressure, unit)
-            );
+            result.setText("—");
         } else if ("accumulatorVolume".equals(key)) {
             result.setText("1000 " + unit);
         } else {
@@ -1101,16 +1094,16 @@ public class BoilerRoomView extends VerticalLayout {
 
         renderSchematic();
 
-        refreshMockData();
+        refreshTelemetryData();
 
-        ui.setPollInterval(2000);
+        ui.setPollInterval(10000);
 
         if (pollRegistration != null) {
             pollRegistration.remove();
         }
 
         pollRegistration = ui.addPollListener(
-                pollEvent -> refreshMockData()
+                pollEvent -> refreshTelemetryData()
         );
     }
 
@@ -1125,103 +1118,169 @@ public class BoilerRoomView extends VerticalLayout {
     }
 
     // =========================================================
-    // MOCK DATA
+    // LIVE TELEMETRY
     // =========================================================
 
-    private void refreshMockData() {
-        // Імітація невеликих коливань температур
-        calculateAccumulatorCharge();
-        boilerSupply = vary(boilerSupply, 80.0, 20.0, 110.0);
-        boilerReturn = vary(boilerReturn, 55.0, 10.0, 70.0);
-        flueTemperature = vary(flueTemperature, 190, 20, 200.0);
+    /**
+     * Отримує останні значення через TelemetryService.
+     * MQTT обробляє Spring Boot; Vaadin не підключається до брокера напряму.
+     */
+    private void refreshTelemetryData() {
+        try {
+            var readings = telemetryService.getTelemetryReadings(DEVICE_ID);
 
-        accumulatorTop = vary(accumulatorTop, 60.0, 20.0, 85.0);
-        accumulatorMiddle = vary(accumulatorMiddle, 40.0, 20.0, 75.0);
-        accumulatorBottom = vary(accumulatorBottom, 20.0, 15.0, 75.0);
+            Map<String, TelemetryReadingResponse> bySensorId =
+                    new LinkedHashMap<>();
 
-        radiatorIn = vary(radiatorIn, 58.0, 45.0, 70.0);
-        radiatorOut = vary(radiatorOut, 30.0, 25.0, 45.0);
+            for (TelemetryReadingResponse reading : readings) {
+                if (reading.sensorId() != null) {
+                    bySensorId.put(reading.sensorId(), reading);
+                }
+            }
 
-        radiatorIn = vary(radiatorIn, 58.0, 45.0, 70.0);
-        radiatorOut = vary(radiatorOut, 30.0, 25.0, 45.0);
+            setNumber(bySensorId, "boiler_supply", value -> boilerSupply = value);
+            setNumber(bySensorId, "boiler_return", value -> boilerReturn = value);
+            setNumber(bySensorId, "flue_temperature", value -> flueTemperature = value);
 
-        // Тепла підлога
-        floorIn = vary(floorIn, 35.0, 25.0, 45.0);
-        floorOut = vary(floorOut, 28.0, 20.0, 35.0);
+            setNumber(bySensorId, "accumulator_01", value -> accumulatorTop = value);
+            setNumber(bySensorId, "accumulator_02", value -> accumulatorZoneTop = value);
+            setNumber(bySensorId, "accumulator_03", value -> accumulatorMiddle = value);
+            setNumber(bySensorId, "accumulator_04", value -> accumulatorZoneBottom = value);
+            setNumber(bySensorId, "accumulator_05", value -> accumulatorBottom = value);
 
-        // Бойлер ГВП
-        dhwSupply = vary(dhwSupply, 65.0, 45.0, 75.0);
-        dhwTemperature = vary(dhwTemperature, 48.0, 30.0, 60.0);
+            setNumber(bySensorId, "radiator_supply", value -> radiatorIn = value);
+            setNumber(bySensorId, "radiator_return", value -> radiatorOut = value);
+            setNumber(bySensorId, "underfloor_supply", value -> floorIn = value);
+            setNumber(bySensorId, "underfloor_return", value -> floorOut = value);
+            setNumber(bySensorId, "dhw_supply", value -> dhwSupply = value);
+            setNumber(bySensorId, "dhw_temperature", value -> dhwTemperature = value);
+            setNumber(bySensorId, "system_pressure", value -> systemPressure = value);
+            setNumber(bySensorId, "electric_boiler_supply",
+                    value -> electricBoilerSupply = value);
+            setNumber(bySensorId, "electric_boiler_return",
+                    value -> electricBoilerReturn = value);
 
-        electricBoilerSupply = vary(electricBoilerSupply, 20.0, 15.0, 30.0);
+            boilerPumpOn = getBoolean(bySensorId, "boiler_pump", false);
+            radiatorPumpOn = getBoolean(bySensorId, "radiator_pump", false);
+            floorPumpOn = getBoolean(bySensorId, "underfloor_pump", false);
+            dhwPumpOn = getBoolean(bySensorId, "dhw_pump", false);
 
-        // Тестова імітація роботи насосів.
-        // Це не реальна автоматика котельні.
-        boilerPumpOn = boilerSupply >= 90.0;
-        radiatorPumpOn = accumulatorTop >= 75.0;
-        floorPumpOn = accumulatorTop >= 30.0;
-        dhwPumpOn = accumulatorTop >= 84.0;
+            lastTelemetryAt = readings.stream()
+                    .map(reading -> reading.receivedAt() != null
+                            ? reading.receivedAt()
+                            : reading.measuredAt())
+                    .filter(java.util.Objects::nonNull)
+                    .max(Instant::compareTo)
+                    .orElse(lastTelemetryAt);
 
-        // Оновлення температур у бічній картці
+            boolean hasTelemetry = !bySensorId.isEmpty();
+            statusTitle.setText(hasTelemetry ? "КОНТРОЛЕР НАДІСЛАВ ДАНІ"
+                    : "ОЧІКУВАННЯ ДАНИХ");
+            statusDescription.setText(hasTelemetry
+                    ? "Пристрій " + DEVICE_ID + " · останнє оновлення: "
+                    + formatLastUpdate(lastTelemetryAt)
+                    : "Немає телеметрії від " + DEVICE_ID);
+
+            // Запити на тепло та стан електрокотла контролер наразі не передає.
+            updateTemperatureValues();
+            updatePumpStates();
+            updateSystemValues();
+            updateSchematicTemperatures();
+            updatePumpIndicators();
+            updateHeatRequestIndicators();
+            updateSchematicTemperatureColors();
+
+        } catch (Exception ex) {
+            statusTitle.setText("ПОМИЛКА ОТРИМАННЯ ДАНИХ");
+            statusDescription.setText(
+                    "Не вдалося прочитати телеметрію " + DEVICE_ID
+            );
+            updateTemperatureValues();
+            updatePumpStates();
+            updateSystemValues();
+            updateSchematicTemperatures();
+            updatePumpIndicators();
+            updateHeatRequestIndicators();
+            updateSchematicTemperatureColors();
+        }
+    }
+
+    @FunctionalInterface
+    private interface NumberConsumer {
+        void accept(double value);
+    }
+
+    private void setNumber(
+            Map<String, TelemetryReadingResponse> readings,
+            String sensorId,
+            NumberConsumer consumer
+    ) {
+        TelemetryReadingResponse reading = readings.get(sensorId);
+        if (reading == null || reading.numericValue() == null) {
+            return;
+        }
+        consumer.accept(reading.numericValue().doubleValue());
+    }
+
+    private boolean getBoolean(
+            Map<String, TelemetryReadingResponse> readings,
+            String sensorId,
+            boolean defaultValue
+    ) {
+        TelemetryReadingResponse reading = readings.get(sensorId);
+        return reading == null || reading.booleanValue() == null
+                ? defaultValue
+                : reading.booleanValue();
+    }
+
+    private String formatLastUpdate(Instant timestamp) {
+        if (timestamp == null) {
+            return "—";
+        }
+        return DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
+                .withZone(ZoneId.systemDefault())
+                .format(timestamp);
+    }
+
+    private void updateTemperatureValues() {
         setTemperature("boilerSupply", boilerSupply);
         setTemperature("boilerReturn", boilerReturn);
         setTemperature("flueTemperature", flueTemperature);
-
         setTemperature("accumulatorTop", accumulatorTop);
-        setTemperature("accumulatorTop", accumulatorZoneTop);
         setTemperature("accumulatorMiddle", accumulatorMiddle);
-        setTemperature("accumulatorBottom", accumulatorZoneBottom);
         setTemperature("accumulatorBottom", accumulatorBottom);
-
         setTemperature("radiatorIn", radiatorIn);
         setTemperature("radiatorOut", radiatorOut);
-
         setTemperature("floorIn", floorIn);
         setTemperature("floorOut", floorOut);
         setTemperature("dhwSupply", dhwSupply);
         setTemperature("dhwTemperature", dhwTemperature);
         setTemperature("electricBoilerSupply", electricBoilerSupply);
         setTemperature("electricBoilerReturn", electricBoilerReturn);
+        setTemperature("accumulatorTopZone", accumulatorZoneTop);
+        setTemperature("accumulatorBottomZone", accumulatorZoneBottom);
+        calculateAccumulatorCharge();
+    }
 
-
-        // Оновлення станів насосів
+    private void updatePumpStates() {
         setPumpState("boilerPump", boilerPumpOn);
         setPumpState("radiatorPump", radiatorPumpOn);
         setPumpState("floorPump", floorPumpOn);
         setPumpState("dhwPump", dhwPumpOn);
-
-        // Оновлення тиску
-        Span pressure = systemValues.get("pressure");
-
-        if (pressure != null) {
-            pressure.setText(
-                    String.format(
-                            Locale.US,
-                            "%.1f бар",
-                            systemPressure
-                    )
-            );
-        }
-
-        // Оновлення SVG
-        updateSchematicTemperatures();
-        updatePumpIndicators();
-        updateHeatRequestIndicators();
-        updateSchematicTemperatureColors();
     }
 
-    private double vary(
-            double current,
-            double target,
-            double min,
-            double max
-    ) {
-        double next = current + (Math.random() - 0.5) * 2.0;
+    private void updateSystemValues() {
+        Span pressure = systemValues.get("pressure");
+        if (pressure != null) {
+            pressure.setText(Double.isFinite(systemPressure)
+                    ? String.format(Locale.US, "%.1f бар", systemPressure)
+                    : "—");
+        }
 
-        // Плавне повернення до заданого орієнтира
-        next += (target - current) * 0.05;
-
-        return Math.max(min, Math.min(max, next));
+        Span lastUpdate = systemValues.get("lastUpdate");
+        if (lastUpdate != null) {
+            lastUpdate.setText(formatLastUpdate(lastTelemetryAt));
+        }
     }
 
     // =========================================================
@@ -1232,10 +1291,16 @@ public class BoilerRoomView extends VerticalLayout {
         Span span = temperatureValues.get(key);
 
         if (span != null) {
-            span.setText(
-                    String.format(Locale.US, "%.1f", value)
-            );
+            span.setText(Double.isFinite(value)
+                    ? String.format(Locale.US, "%.1f", value)
+                    : "—");
         }
+    }
+
+    private String formatTemperature(double value) {
+        return Double.isFinite(value)
+                ? String.format(Locale.US, "%.1f", value)
+                : "—";
     }
 
     private void updateSchematicTemperatures() {
@@ -1271,56 +1336,58 @@ public class BoilerRoomView extends VerticalLayout {
                             }
                         }
                         """,
-                String.format(Locale.US, "%.1f", boilerSupply),
-                String.format(Locale.US, "%.1f", boilerReturn),
-                String.format(Locale.US, "%.1f", flueTemperature),
+                formatTemperature(boilerSupply),
+                formatTemperature(boilerReturn),
+                formatTemperature(flueTemperature),
 
-                String.format(Locale.US, "%.1f", accumulatorTop),
-                String.format(Locale.US, "%.1f", accumulatorMiddle),
-                String.format(Locale.US, "%.1f", accumulatorBottom),
+                formatTemperature(accumulatorTop),
+                formatTemperature(accumulatorMiddle),
+                formatTemperature(accumulatorBottom),
 
-                String.format(Locale.US, "%.1f", radiatorIn),
-                String.format(Locale.US, "%.1f", radiatorOut),
+                formatTemperature(radiatorIn),
+                formatTemperature(radiatorOut),
 
-                String.format(Locale.US, "%.1f", floorIn),
-                String.format(Locale.US, "%.1f", floorOut),
+                formatTemperature(floorIn),
+                formatTemperature(floorOut),
 
-                String.format(Locale.US, "%.1f", dhwSupply),
-                String.format(Locale.US, "%.1f", dhwTemperature),
-                String.format(Locale.US, "%.1f", electricBoilerSupply),
-                String.format(Locale.US, "%.1f", electricBoilerReturn),
-                String.format(Locale.US, "%.1f", accumulatorZoneTop),
-                String.format(Locale.US, "%.1f", accumulatorZoneBottom)
+                formatTemperature(dhwSupply),
+                formatTemperature(dhwTemperature),
+                formatTemperature(electricBoilerSupply),
+                formatTemperature(electricBoilerReturn),
+                formatTemperature(accumulatorZoneTop),
+                formatTemperature(accumulatorZoneBottom)
 
         );
         schematic.getElement().executeJs("""
                         const charge = this.querySelector('#accumulator-charge-value');
                         
                         if (charge) {
-                            const percent = Number($0);
-                        
-                            charge.textContent = percent + ' %';
-                        
-                            let color;
-                        
-                            if (percent < 20) {
-                                color = '#3b82f6'; // Синій — низький заряд
-                            } else if (percent < 50) {
-                                color = '#06b6d4'; // Блакитний — заряд нижче половини
-                            } else if (percent < 80) {
-                                color = '#f59e0b'; // Помаранчевий — середній заряд
+                            const rawPercent = $0;
+                            const percent = Number(rawPercent);
+
+                            if (rawPercent === '—' || !Number.isFinite(percent)) {
+                                charge.textContent = '— %';
+                                charge.setAttribute('fill', '#9db1c8');
                             } else {
-                                color = '#ef4444'; // Червоний — високий заряд
+                                charge.textContent = percent + ' %';
+
+                                let color;
+                                if (percent < 20) {
+                                    color = '#3b82f6'; // Синій — низький заряд
+                                } else if (percent < 50) {
+                                    color = '#06b6d4'; // Блакитний — заряд нижче половини
+                                } else if (percent < 80) {
+                                    color = '#f59e0b'; // Помаранчевий — середній заряд
+                                } else {
+                                    color = '#ef4444'; // Червоний — високий заряд
+                                }
+                                charge.setAttribute('fill', color);
                             }
-                        
-                            charge.setAttribute('fill', color);
                         }
                         """,
-                String.format(
-                        Locale.US,
-                        "%.0f",
-                        accumulatorChargePercent
-                )
+                Double.isFinite(accumulatorChargePercent)
+                        ? String.format(Locale.US, "%.0f", accumulatorChargePercent)
+                        : "—"
         );
     }
 
@@ -1426,17 +1493,33 @@ public class BoilerRoomView extends VerticalLayout {
 // =========================================================
 
     private void calculateAccumulatorCharge() {
-        double averageTemperature =
-                (accumulatorTop
-                        + accumulatorMiddle
-                        + accumulatorBottom) / 3.0;
+        double sum = 0.0;
+        int count = 0;
 
+        double[] temperatures = {
+                accumulatorTop,
+                accumulatorZoneTop,
+                accumulatorMiddle,
+                accumulatorZoneBottom,
+                accumulatorBottom
+        };
+
+        for (double temperature : temperatures) {
+            if (Double.isFinite(temperature)) {
+                sum += temperature;
+                count++;
+            }
+        }
+
+        if (count == 0) {
+            accumulatorChargePercent = Double.NaN;
+            return;
+        }
+
+        double averageTemperature = sum / count;
         accumulatorChargePercent = Math.max(
                 0.0,
-                Math.min(
-                        100.0,
-                        (averageTemperature - 20.0) / 60.0 * 100.0
-                )
+                Math.min(100.0, (averageTemperature - 20.0) / 60.0 * 100.0)
         );
     }
 

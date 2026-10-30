@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import ua.home.heatingautomation2026.entity.TelemetryReading;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -72,6 +73,35 @@ public interface TelemetryReadingRepository
         ORDER BY tr.receivedAt ASC
         """)
     List<TelemetryReading> findTemperatureReadingsSince(
-            @Param("from") Instant from
+            @Param("from") Instant from);
+
+    @Query("""
+    SELECT t
+    FROM TelemetryReading t
+    JOIN FETCH t.sensor s
+    WHERE s.sensorId IN :sensorIds
+    AND t.receivedAt = (
+        SELECT MAX(t2.receivedAt)
+        FROM TelemetryReading t2
+        WHERE t2.sensor.id = s.id
+    )
+""")
+    List<TelemetryReading> findLatestBySensorIds(
+            @Param("sensorIds") Collection<String> sensorIds
+    );
+
+    @Query("""
+    SELECT t
+    FROM TelemetryReading t
+    JOIN FETCH t.sensor s
+    WHERE s.device.deviceId = :deviceId
+    AND t.receivedAt = (
+        SELECT MAX(t2.receivedAt)
+        FROM TelemetryReading t2
+        WHERE t2.sensor.id = s.id
+    )
+""")
+    List<TelemetryReading> findLatestByDeviceId(
+            @Param("deviceId") String deviceId
     );
 }

@@ -1,3 +1,4 @@
+/*
 package ua.home.heatingautomation2026.repository;
 
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -40,3 +41,4 @@ public interface DeviceParameterRepository extends JpaRepository<DeviceParameter
         """)
     int deleteAllByDeviceId(@Param("deviceId") UUID deviceId);
 }
+*/

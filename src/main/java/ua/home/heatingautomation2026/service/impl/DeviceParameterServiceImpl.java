@@ -1,3 +1,4 @@
+/*
 package ua.home.heatingautomation2026.service.impl;
 
 import jakarta.persistence.Table;
@@ -32,10 +33,12 @@ public class DeviceParameterServiceImpl implements DeviceParameterService {
         var parameter = parameterDefinitionRepository.findByCode(parameterCode).orElseThrow(
                 () -> new EntityNotFoundException("Parameter with code: " + parameterCode + " not found"));
 
-  /*      if (deviceParameterRepository.existsByDevice_IdAndParameterDefinition_Id(device.getId(), parameter.getId())) {
+  */
+/*      if (deviceParameterRepository.existsByDevice_IdAndParameterDefinition_Id(device.getId(), parameter.getId())) {
             throw new EntityValidationException("Parameter with code: " + parameterCode +
                     " already assigned to device with id: " + deviceId);
-        }*/
+        }*//*
+
         DeviceParameter deviceParameter = new DeviceParameter(
                 device, parameter
         );
@@ -137,3 +140,4 @@ public class DeviceParameterServiceImpl implements DeviceParameterService {
                 () -> new EntityNotFoundException("Device with id: " + deviceId + " not found"));
     }
 }
+*/

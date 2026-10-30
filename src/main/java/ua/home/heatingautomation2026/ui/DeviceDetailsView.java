@@ -3,11 +3,11 @@
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -23,7 +23,10 @@ import ua.home.heatingautomation2026.service.SensorService;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Route(value = "device/:deviceId", layout = MainLayout.class)
 @PageTitle("Деталі пристрою | Home Heating")
@@ -31,8 +34,7 @@ public class DeviceDetailsView extends VerticalLayout
         implements BeforeEnterObserver {
 
     private static final DateTimeFormatter DATE_FORMAT =
-            DateTimeFormatter
-                    .ofPattern("dd.MM.yyyy HH:mm:ss")
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
                     .withZone(ZoneId.of("Europe/Kyiv"));
 
     private final DeviceService deviceService;
@@ -41,10 +43,9 @@ public class DeviceDetailsView extends VerticalLayout
     private final H1 title = new H1("Деталі пристрою");
 
     private final Button accumulatorButton = new Button(
-            "🔥 Теплоакумулятор",
-            event -> getUI().ifPresent(
-                    ui -> ui.navigate("accumulator")
-            )
+            "Котельня",
+            VaadinIcon.FIRE.create(),
+            event -> getUI().ifPresent(ui -> ui.navigate("boiler-room"))
     );
 
     private final Paragraph deviceInfo = new Paragraph();
@@ -52,11 +53,7 @@ public class DeviceDetailsView extends VerticalLayout
     private final Span lastHeartbeat = new Span();
 
     private final Div deviceInfoCard = new Div();
-    private final Div sensorsSection = new Div();
-    private final Div sensorCardsContainer = new Div();
-
-    private final Grid<Sensor> sensorsGrid =
-            new Grid<>(Sensor.class, false);
+    private final Div sensorGroupsContainer = new Div();
 
     private String currentDeviceId;
 
@@ -70,28 +67,25 @@ public class DeviceDetailsView extends VerticalLayout
         setWidthFull();
         setPadding(true);
         setSpacing(true);
-
         addClassName("device-details-view");
 
-        // Верхній рядок
+        // Кнопка повернення
         Button backButton = new Button(
-                "← До пристроїв",
-                event -> getUI().ifPresent(
-                        ui -> ui.navigate("")
-                )
+                "До пристроїв",
+                VaadinIcon.ARROW_LEFT.create(),
+                event -> getUI().ifPresent(ui -> ui.navigate("devices"))
         );
         backButton.addClassName("device-back-button");
 
         title.addClassName("device-page-title");
 
-        HorizontalLayout titleRow =
-                new HorizontalLayout(backButton, title);
-
+        HorizontalLayout titleRow = new HorizontalLayout(backButton, title);
         titleRow.addClassName("device-title-row");
         titleRow.setWidthFull();
         titleRow.setAlignItems(Alignment.CENTER);
+        titleRow.expand(title);
 
-        // Кнопки дій
+        // Дії
         Button refreshButton = new Button(
                 "Оновити",
                 VaadinIcon.REFRESH.create(),
@@ -99,7 +93,8 @@ public class DeviceDetailsView extends VerticalLayout
         );
         refreshButton.addClassName("device-action-button");
 
-        accumulatorButton.addClassName("device-action-button");
+        accumulatorButton.addClassName("device-accumulator-button");
+        accumulatorButton.setVisible(false);
 
         HorizontalLayout actionsRow =
                 new HorizontalLayout(accumulatorButton, refreshButton);
@@ -108,21 +103,17 @@ public class DeviceDetailsView extends VerticalLayout
         actionsRow.setWidthFull();
         actionsRow.setAlignItems(Alignment.CENTER);
 
-        // Шапка
-        VerticalLayout header = new VerticalLayout(
-                titleRow,
-                actionsRow
-        );
-
+        VerticalLayout header = new VerticalLayout(titleRow, actionsRow);
         header.addClassName("device-page-header");
         header.setPadding(false);
         header.setSpacing(true);
         header.setWidthFull();
 
-        // Інформація про пристрій
+        // Картка інформації про контролер
         deviceInfoCard.addClassName("device-info-card");
 
-        H3 infoTitle = new H3("Інформація про пристрій");
+        H2 infoTitle = new H2("Інформація про пристрій");
+        infoTitle.addClassName("device-section-title");
 
         deviceInfo.addClassName("device-info-text");
         deviceStatus.addClassName("device-status-text");
@@ -135,23 +126,32 @@ public class DeviceDetailsView extends VerticalLayout
                 lastHeartbeat
         );
 
+        infoContent.addClassName("device-info-content");
         infoContent.setPadding(false);
         infoContent.setSpacing(true);
 
         deviceInfoCard.add(infoContent);
 
-        // Датчики
-        H3 sensorsTitle = new H3("Датчики");
-        sensorsTitle.addClassName("sensors-section-title");
+        // Категорії параметрів і картки датчиків
+        Div sensorsSection = new Div();
+        sensorsSection.addClassName("device-sensors-section");
 
-        sensorsGrid.addClassName("responsive-grid");
+        H2 sensorsTitle = new H2("Параметри та датчики");
+        sensorsTitle.addClassName("device-section-title");
 
-        configureSensorsGrid();
+        Paragraph sensorsDescription = new Paragraph(
+                "Параметри згруповані за типом вимірювання. "
+                        + "Виберіть картку датчика, щоб відкрити графік."
+        );
+        sensorsDescription.addClassName("device-section-description");
 
-        sensorCardsContainer.addClassName("sensor-cards-container");
+        sensorGroupsContainer.addClassName("device-sensor-groups");
 
-        sensorsSection.addClassName("sensors-section");
-        sensorsSection.add(sensorsTitle, sensorsGrid, sensorCardsContainer);
+        sensorsSection.add(
+                sensorsTitle,
+                sensorsDescription,
+                sensorGroupsContainer
+        );
 
         add(header, deviceInfoCard, sensorsSection);
     }
@@ -165,114 +165,6 @@ public class DeviceDetailsView extends VerticalLayout
         refreshData();
     }
 
-    private void configureSensorsGrid() {
-        sensorsGrid.addColumn(Sensor::getSensorId)
-                .setHeader("ID датчика")
-                .setAutoWidth(true);
-
-        sensorsGrid.addColumn(Sensor::getSensorName)
-                .setHeader("Назва датчика")
-                .setAutoWidth(true)
-                .setFlexGrow(1);
-
-        sensorsGrid.addColumn(sensor ->
-                        sensor.getParameterDefinition() == null
-                                ? "—"
-                                : sensor.getParameterDefinition().getName()
-                )
-                .setHeader("Параметр")
-                .setAutoWidth(true);
-
-        sensorsGrid.addColumn(sensor ->
-                        sensor.getParameterDefinition() == null
-                                || sensor.getParameterDefinition().getUnit() == null
-                                ? "—"
-                                : sensor.getParameterDefinition().getUnit()
-                )
-                .setHeader("Одиниця")
-                .setAutoWidth(true);
-
-        sensorsGrid.addColumn(sensor ->
-                        sensor.isEnabled()
-                                ? "Увімкнений"
-                                : "Вимкнений"
-                )
-                .setHeader("Статус")
-                .setAutoWidth(true);
-
-        sensorsGrid.setWidthFull();
-        sensorsGrid.setHeight("350px");
-
-        sensorsGrid.getStyle().set("cursor", "pointer");
-
-        sensorsGrid.addItemClickListener(event ->
-                navigateToSensorChart(event.getItem())
-        );
-    }
-
-    private Div createSensorCard(Sensor sensor) {
-        Div card = new Div();
-        card.addClassName("sensor-mobile-card");
-
-        H3 sensorName = new H3(sensor.getSensorName());
-        sensorName.addClassName("sensor-mobile-name");
-
-        Paragraph sensorId = new Paragraph(
-                "ID: " + sensor.getSensorId()
-        );
-
-        String parameter = sensor.getParameterDefinition() == null
-                ? "—"
-                : sensor.getParameterDefinition().getName();
-
-        String unit = sensor.getParameterDefinition() == null
-                || sensor.getParameterDefinition().getUnit() == null
-                ? "—"
-                : sensor.getParameterDefinition().getUnit();
-
-        Paragraph parameterInfo = new Paragraph(
-                "Параметр: " + parameter
-        );
-
-        Paragraph unitInfo = new Paragraph(
-                "Одиниця вимірювання: " + unit
-        );
-
-        Span status = new Span(
-                sensor.isEnabled() ? "● Увімкнений" : "● Вимкнений"
-        );
-
-        status.addClassName(
-                sensor.isEnabled()
-                        ? "sensor-status-enabled"
-                        : "sensor-status-disabled"
-        );
-
-        Span openHint = new Span("Переглянути графік →");
-        openHint.addClassName("sensor-open-hint");
-
-        card.add(
-                sensorName,
-                sensorId,
-                parameterInfo,
-                unitInfo,
-                status,
-                openHint
-        );
-
-        card.getStyle().set("cursor", "pointer");
-
-        card.addClickListener(event -> navigateToSensorChart(sensor));
-
-        return card;
-    }
-
-    private void navigateToSensorChart(Sensor sensor) {
-        getUI().ifPresent(ui ->
-                ui.navigate("telemetry-chart/" + sensor.getSensorId())
-        );
-    }
-
     private void refreshData() {
         if (currentDeviceId == null || currentDeviceId.isBlank()) {
             return;
@@ -283,20 +175,24 @@ public class DeviceDetailsView extends VerticalLayout
 
             title.setText(device.getDeviceName());
 
-            accumulatorButton.setVisible(
+           accumulatorButton.setVisible(
                     device.getDeviceName() != null
-                            && "LIGHT TA 1000".equalsIgnoreCase(
+                            && "BOILER ROOM 01".equalsIgnoreCase(
                             device.getDeviceName().trim()
                     )
             );
 
             deviceInfo.setText(
-                    "ID: " + device.getDeviceId()
-                            + " | Тип: " + device.getDeviceType()
+                    "ID контролера: " + device.getDeviceId()
+                            + " | Тип: "
+                            + (device.getDeviceType() == null
+                            ? "—"
+                            : device.getDeviceType().name())
             );
 
             deviceStatus.setText(
-                    "Статус: " + getStatusLabel(
+                    "Статус реєстрації: "
+                            + getStatusLabel(
                             device.getDeviceRegistrationStatus().name()
                     )
             );
@@ -309,39 +205,201 @@ public class DeviceDetailsView extends VerticalLayout
             List<Sensor> sensors =
                     sensorService.findAllByDeviceId(device.getDeviceId());
 
-            // Таблиця для комп'ютера
-            sensorsGrid.setItems(sensors);
-
-            // Картки для телефону
-            sensorCardsContainer.removeAll();
-
-            if (sensors.isEmpty()) {
-                Paragraph emptyMessage =
-                        new Paragraph("У цього пристрою немає датчиків.");
-
-                emptyMessage.addClassName("sensors-empty-message");
-
-                sensorCardsContainer.add(emptyMessage);
-            } else {
-                sensors.stream()
-                        .map(this::createSensorCard)
-                        .forEach(sensorCardsContainer::add);
-            }
+            renderSensorGroups(sensors);
 
         } catch (EntityNotFoundException ex) {
             title.setText("Пристрій не знайдено");
             deviceInfo.setText("ID: " + currentDeviceId);
-            deviceStatus.setText("Перевір ідентифікатор пристрою.");
+            deviceStatus.setText("Перевірте ідентифікатор пристрою.");
             lastHeartbeat.setText("");
 
-            sensorsGrid.setItems(List.of());
-            sensorCardsContainer.removeAll();
+            sensorGroupsContainer.removeAll();
 
-            Paragraph errorMessage =
-                    new Paragraph("Не вдалося знайти пристрої цього датчика.");
+            Paragraph errorMessage = new Paragraph(
+                    "Не вдалося знайти пристрій або його датчики."
+            );
+            errorMessage.addClassName("device-empty-message");
 
-            sensorCardsContainer.add(errorMessage);
+            sensorGroupsContainer.add(errorMessage);
+
+        } catch (RuntimeException ex) {
+            Paragraph errorMessage = new Paragraph(
+                    "Помилка завантаження даних: " + ex.getMessage()
+            );
+            errorMessage.addClassName("device-error-message");
+
+            sensorGroupsContainer.removeAll();
+            sensorGroupsContainer.add(errorMessage);
         }
+    }
+
+    private void renderSensorGroups(List<Sensor> sensors) {
+        sensorGroupsContainer.removeAll();
+
+        if (sensors == null || sensors.isEmpty()) {
+            Paragraph emptyMessage = new Paragraph(
+                    "У цього пристрою ще немає зареєстрованих датчиків."
+            );
+            emptyMessage.addClassName("device-empty-message");
+
+            sensorGroupsContainer.add(emptyMessage);
+            return;
+        }
+
+        Map<String, List<Sensor>> groups = new LinkedHashMap<>();
+
+        for (Sensor sensor : sensors) {
+            String category = getParameterCategory(sensor);
+
+            groups.computeIfAbsent(category, key ->
+                    new java.util.ArrayList<>()
+            ).add(sensor);
+        }
+
+        for (Map.Entry<String, List<Sensor>> entry : groups.entrySet()) {
+            Div groupCard = new Div();
+            groupCard.addClassName("device-parameter-group");
+
+            Div groupHeader = new Div();
+            groupHeader.addClassName("device-parameter-group-header");
+
+            H3 groupTitle = new H3(entry.getKey());
+            groupTitle.addClassName("device-parameter-group-title");
+
+            Span count = new Span(
+                    String.valueOf(entry.getValue().size())
+            );
+            count.addClassName("device-parameter-count");
+
+            groupHeader.add(groupTitle, count);
+
+            Div cards = new Div();
+            cards.addClassName("device-sensor-cards");
+
+            for (Sensor sensor : entry.getValue()) {
+                cards.add(createSensorCard(sensor));
+            }
+
+            groupCard.add(groupHeader, cards);
+            sensorGroupsContainer.add(groupCard);
+        }
+    }
+
+
+    private Div createSensorCard(Sensor sensor) {
+        Div card = new Div();
+        card.addClassName("device-sensor-card");
+
+        // Назва датчика
+        String sensorName = sensor.getSensorName() == null
+                || sensor.getSensorName().isBlank()
+                ? sensor.getSensorId()
+                : sensor.getSensorName();
+
+        H3 name = new H3(sensorName);
+        name.addClassName("device-sensor-name");
+
+        // ID датчика
+        Span sensorId = new Span("ID: " + sensor.getSensorId());
+        sensorId.addClassName("device-sensor-id");
+
+        // Статус
+        Span status = new Span(
+                sensor.isEnabled() ? "● Увімкнений" : "● Вимкнений"
+        );
+
+        status.addClassName("device-sensor-status");
+        status.addClassName(
+                sensor.isEnabled()
+                        ? "device-sensor-status-enabled"
+                        : "device-sensor-status-disabled"
+        );
+
+        // Рядок з ID та статусом
+        Div metaRow = new Div(sensorId, status);
+        metaRow.addClassName("device-sensor-meta");
+
+        // Підказка переходу
+        Span openHint = new Span("Переглянути графік →");
+        openHint.addClassName("device-sensor-open-hint");
+
+        card.add(name, metaRow, openHint);
+
+        card.getElement().setAttribute("role", "button");
+        card.getElement().setAttribute("tabindex", "0");
+        card.getElement().setAttribute("aria-label",
+                "Відкрити графік датчика " + sensorName);
+
+        card.addClickListener(event -> navigateToSensorChart(sensor));
+
+        return card;
+    }
+
+    /**
+     * Визначає категорію за назвою, кодом та одиницею параметра.
+     * Якщо назва параметра не відповідає відомим категоріям,
+     * датчик потрапляє до "Інші параметри".
+     */
+    private String getParameterCategory(Sensor sensor) {
+        if (sensor.getParameterDefinition() == null) {
+            return "Інші параметри";
+        }
+
+        String name = sensor.getParameterDefinition().getName();
+        String unit = sensor.getParameterDefinition().getUnit();
+        String code = sensor.getParameterDefinition().getCode();
+
+        String text = (
+                (name == null ? "" : name) + " "
+                        + (unit == null ? "" : unit) + " "
+                        + (code == null ? "" : code)
+        ).toLowerCase(Locale.ROOT);
+
+        if (containsAny(text,
+                "температур", "temperature", "temp",
+                "°c", "celsius", "димохід", "теплоакумулятор")) {
+            return "🌡 Температура";
+        }
+
+        if (containsAny(text,
+                "тиск", "pressure", "bar", "кпа", "kpa", "mpa")) {
+            return "💧 Тиск";
+        }
+
+        if (containsAny(text,
+                "напруг", "voltage", "volt", "струм", "current",
+                "ампер", "ampere", "потужн", "power", "ват", "watt",
+                "енергі", "energy", "квт")) {
+            return "⚡ Електричні параметри";
+        }
+
+        if (containsAny(text,
+                "волог", "humidity", "hum")) {
+            return "💧 Вологість";
+        }
+
+        if (containsAny(text,
+                "швидкіст", "speed", "витрат", "flow", "volume",
+                "об'єм", "об’єм")) {
+            return "📈 Витрата та швидкість";
+        }
+
+        return "📊 Інші параметри";
+    }
+
+    private boolean containsAny(String text, String... values) {
+        for (String value : values) {
+            if (text.contains(value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void navigateToSensorChart(Sensor sensor) {
+        getUI().ifPresent(ui ->
+                ui.navigate("sensor/" + sensor.getSensorId())
+        );
     }
 
     private String formatTimestamp(Instant timestamp) {

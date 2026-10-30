@@ -1,4 +1,4 @@
-package ua.home.heatingautomation2026.ui;
+ package ua.home.heatingautomation2026.ui;
 
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.DetachEvent;
@@ -6,6 +6,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
@@ -19,7 +20,6 @@ import ua.home.heatingautomation2026.entity.Device;
 import ua.home.heatingautomation2026.service.DeviceConnectivityService;
 import ua.home.heatingautomation2026.service.DeviceService;
 
-
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -29,8 +29,7 @@ import java.time.format.DateTimeFormatter;
 public class DevicesView extends VerticalLayout {
 
     private static final DateTimeFormatter DATE_FORMAT =
-            DateTimeFormatter
-                    .ofPattern("dd.MM.yyyy HH:mm:ss")
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
                     .withZone(ZoneId.of("Europe/Kyiv"));
 
     private final DeviceService deviceService;
@@ -40,26 +39,29 @@ public class DevicesView extends VerticalLayout {
 
     private final Grid<Device> grid = new Grid<>(Device.class, false);
 
-    public DevicesView(DeviceService deviceService,  DeviceConnectivityService connectivityService) {
+    public DevicesView(
+            DeviceService deviceService,
+            DeviceConnectivityService connectivityService
+    ) {
         this.deviceService = deviceService;
         this.connectivityService = connectivityService;
 
         setSizeFull();
-        setPadding(false);
+        setPadding(true);
         setSpacing(true);
-        addClassName("page-view");
+        addClassName("devices-view");
 
         H1 title = new H1("Пристрої");
+        title.addClassName("devices-title");
 
         Button refreshButton = new Button(
                 "Оновити",
                 event -> refreshData()
         );
+        refreshButton.addClassName("devices-refresh-button");
 
-        HorizontalLayout header =
-                new HorizontalLayout(title, refreshButton);
-
-        header.addClassName("page-header");
+        HorizontalLayout header = new HorizontalLayout(title, refreshButton);
+        header.addClassName("devices-header");
         header.setWidthFull();
         header.setAlignItems(Alignment.CENTER);
         header.expand(title);
@@ -67,16 +69,32 @@ public class DevicesView extends VerticalLayout {
         Paragraph description = new Paragraph(
                 "Реєстрація, статуси та керування ESP32-контролерами."
         );
+        description.addClassName("devices-subtitle");
 
         configureGrid();
 
-        add(header, description, grid);
+        Div card = new Div();
+        card.addClassName("devices-card");
+
+        H1 cardTitle = new H1("Зареєстровані пристрої");
+        cardTitle.addClassName("devices-card-title");
+
+        Paragraph cardDescription = new Paragraph(
+                "Перегляд стану контролерів, часу останнього зв'язку "
+                        + "та доступних дій."
+        );
+        cardDescription.addClassName("devices-card-description");
+
+        card.add(cardTitle, cardDescription, grid);
+
+        add(header, description, card);
 
         refreshData();
     }
 
     private void configureGrid() {
-        grid.addClassName("responsive-grid");
+        grid.addClassName("devices-grid");
+
         grid.addColumn(Device::getDeviceId)
                 .setHeader("ID пристрою")
                 .setAutoWidth(true)
@@ -118,18 +136,18 @@ public class DevicesView extends VerticalLayout {
     }
 
     private HorizontalLayout createActions(Device device) {
-
         HorizontalLayout actions = new HorizontalLayout();
         actions.setSpacing(true);
-        actions.addClassName("row-actions");
-        String status =
-                device.getDeviceRegistrationStatus().name();
+        actions.setPadding(false);
+        actions.addClassName("devices-row-actions");
+
+        String status = device.getDeviceRegistrationStatus().name();
 
         switch (status) {
-
             case "PENDING" -> actions.add(
                     createAction(
                             "Активувати",
+                            "devices-action-success",
                             "Пристрій активовано",
                             () -> deviceService.approveDevice(device.getId())
                     )
@@ -138,6 +156,7 @@ public class DevicesView extends VerticalLayout {
             case "ACTIVE" -> actions.add(
                     createAction(
                             "Вимкнути",
+                            "devices-action-warning",
                             "Пристрій вимкнено",
                             () -> deviceService.disableDevice(device.getId())
                     )
@@ -146,22 +165,25 @@ public class DevicesView extends VerticalLayout {
             case "DISABLED" -> actions.add(
                     createAction(
                             "Увімкнути",
+                            "devices-action-success",
                             "Пристрій знову активовано",
                             () -> deviceService.enableDevice(device.getId())
                     )
             );
 
-            default -> actions.add(
-                    new Button("Недоступно", event ->
-                            Notification.show(
-                                    "Невідомий статус пристрою"
-                            )
-                    )
-            );
+            default -> {
+                Button unavailableButton = new Button(
+                        "Недоступно",
+                        event -> Notification.show("Невідомий статус пристрою")
+                );
+                unavailableButton.addClassName("devices-action-button");
+                unavailableButton.setEnabled(false);
+                actions.add(unavailableButton);
+            }
         }
 
         Button detailsButton = new Button("Деталі");
-
+        detailsButton.addClassName("devices-details-button");
         detailsButton.addClickListener(event ->
                 detailsButton.getUI().ifPresent(ui ->
                         ui.navigate("device/" + device.getDeviceId())
@@ -170,19 +192,23 @@ public class DevicesView extends VerticalLayout {
 
         actions.add(detailsButton);
         actions.add(createDeleteButton(device));
+
         return actions;
     }
 
     private Button createAction(
             String label,
+            String styleClass,
             String successMessage,
             Runnable action
     ) {
-        return new Button(label, event -> {
+        Button button = new Button(label);
+        button.addClassName("devices-action-button");
+        button.addClassName(styleClass);
 
+        button.addClickListener(event -> {
             try {
                 action.run();
-
                 refreshData();
 
                 Notification.show(
@@ -190,9 +216,7 @@ public class DevicesView extends VerticalLayout {
                         3000,
                         Notification.Position.BOTTOM_START
                 );
-
             } catch (RuntimeException ex) {
-
                 Notification.show(
                         "Помилка: " + ex.getMessage(),
                         5000,
@@ -200,12 +224,12 @@ public class DevicesView extends VerticalLayout {
                 );
             }
         });
+
+        return button;
     }
 
     private String getStatusLabel(Device device) {
-
-        String status =
-                device.getDeviceRegistrationStatus().name();
+        String status = device.getDeviceRegistrationStatus().name();
 
         return switch (status) {
             case "PENDING" -> "Очікує підтвердження";
@@ -216,13 +240,10 @@ public class DevicesView extends VerticalLayout {
     }
 
     private String getConnectivityLabel(Device device) {
-
         DeviceConnectivityStatus status =
                 connectivityService.getDeviceConnectivityStatus(
                         device.getDeviceId()
                 );
-
-
 
         return switch (status) {
             case ONLINE -> "🟢 Онлайн";
@@ -231,23 +252,18 @@ public class DevicesView extends VerticalLayout {
         };
     }
 
-
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
 
         UI ui = attachEvent.getUI();
-
         ui.setPollInterval(15_000);
 
-        pollRegistration = ui.addPollListener(
-                event -> refreshData()
-        );
+        pollRegistration = ui.addPollListener(event -> refreshData());
     }
 
     @Override
     protected void onDetach(DetachEvent detachEvent) {
-
         if (pollRegistration != null) {
             pollRegistration.remove();
             pollRegistration = null;
@@ -259,7 +275,6 @@ public class DevicesView extends VerticalLayout {
     }
 
     private String formatTimestamp(Instant timestamp) {
-
         if (timestamp == null) {
             return "Ще не підключався";
         }
@@ -268,17 +283,23 @@ public class DevicesView extends VerticalLayout {
     }
 
     private void refreshData() {
-        grid.setItems(deviceService.findAllDevices());
+        try {
+            grid.setItems(deviceService.findAllDevices());
+        } catch (RuntimeException ex) {
+            Notification.show(
+                    "Не вдалося завантажити пристрої: " + ex.getMessage(),
+                    5000,
+                    Notification.Position.BOTTOM_START
+            );
+        }
     }
 
     private Button createDeleteButton(Device device) {
-
         Button deleteButton = new Button("Видалити");
-
+        deleteButton.addClassName("devices-delete-button");
         deleteButton.addThemeNames("error");
 
         deleteButton.addClickListener(event -> {
-
             ConfirmDialog dialog = new ConfirmDialog();
 
             dialog.setHeader("Видалити пристрій?");
@@ -298,10 +319,8 @@ public class DevicesView extends VerticalLayout {
             dialog.setConfirmButtonTheme("error primary");
 
             dialog.addConfirmListener(confirmEvent -> {
-
                 try {
                     deviceService.deleteDevice(device.getId());
-
                     refreshData();
 
                     Notification.show(
@@ -309,12 +328,9 @@ public class DevicesView extends VerticalLayout {
                             4000,
                             Notification.Position.BOTTOM_START
                     );
-
                 } catch (RuntimeException ex) {
-
                     Notification.show(
-                            "Не вдалося видалити пристрій: "
-                                    + ex.getMessage(),
+                            "Не вдалося видалити пристрій: " + ex.getMessage(),
                             5000,
                             Notification.Position.BOTTOM_START
                     );

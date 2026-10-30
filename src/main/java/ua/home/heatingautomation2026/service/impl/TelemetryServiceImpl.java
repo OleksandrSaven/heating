@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -58,12 +59,13 @@ public class TelemetryServiceImpl implements TelemetryService {
      */
 
     private static final BigDecimal TEMPERATURE_THRESHOLD =
-            new BigDecimal("0.5");
+            new BigDecimal("4");
 
     @Override
     @Transactional
     public synchronized int ingest(String deviceId, TelemetryRequest request) {
 
+        // 1. Перевіряємо пристрій
         Device device = deviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
@@ -71,7 +73,7 @@ public class TelemetryServiceImpl implements TelemetryService {
                         )
                 );
 
-        if (device.getDeviceRegistrationStatus()!= DeviceRegistrationStatus.ACTIVE) {
+        if (device.getDeviceRegistrationStatus() != DeviceRegistrationStatus.ACTIVE) {
             throw new IllegalStateException(
                     "Device is not active: " + deviceId
             );
@@ -82,28 +84,8 @@ public class TelemetryServiceImpl implements TelemetryService {
             return 0;
         }
 
-        /*
-         * Отримуємо попередні значення з кешу.
-         * Якщо пристрій ще не надсилав телеметрію, список буде порожнім.
-         */
-        List<TelemetryReading> previousReadings =
-                telemetryReadingMap.getOrDefault(deviceId, List.of());
-
-        Map<String, TelemetryReading> previousBySensor = new HashMap<>();
-
-        for (TelemetryReading reading : previousReadings) {
-            previousBySensor.put(
-                    reading.getSensor().getSensorId(),
-                    reading
-            );
-        }
-
-        /*
-         * readings — усі показники з поточного повідомлення.
-         * changedReadings — лише нові або змінені показники для БД.
-         */
-        List<TelemetryReading> readings = new ArrayList<>();
-        List<TelemetryReading> changedReadings = new ArrayList<>();
+        // 2. Перевіряємо ID датчиків до звернення до БД
+        Set<String> sensorIds = request.values().keySet();
 
         Set<String> processedSensorIds = new HashSet<>();
 
@@ -112,14 +94,12 @@ public class TelemetryServiceImpl implements TelemetryService {
             String sensorId = entry.getKey();
             JsonNode value = entry.getValue();
 
-            // Перевіряємо ідентифікатор датчика.
             if (sensorId == null || sensorId.isBlank()) {
                 throw new IllegalArgumentException(
                         "Sensor ID must not be empty"
                 );
             }
 
-            // Не дозволяємо двічі обробляти один датчик у межах повідомлення.
             if (!processedSensorIds.add(sensorId)) {
                 throw new IllegalArgumentException(
                         "Duplicate sensor ID: " + sensorId
@@ -132,27 +112,100 @@ public class TelemetryServiceImpl implements TelemetryService {
                                 + sensorId
                 );
             }
+        }
 
-            // Знаходимо датчик.
-            Sensor sensor = sensorRepository.findBySensorId(sensorId)
-                    .orElseThrow(() ->
-                            new IllegalArgumentException(
-                                    "Sensor not found: " + sensorId
-                            )
-                    );
+        // 3. Одним запитом отримуємо всі датчики з пов'язаними Entity
+        Map<String, Sensor> sensorsMap = sensorRepository
+                .findAllWithDetailsBySensorIds(sensorIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        Sensor::getSensorId,
+                        Function.identity()
+                ));
 
-            // Перевіряємо, що датчик належить пристрою, який надіслав дані.
+        // 4. Перевіряємо наявність усіх датчиків
+        for (String sensorId : sensorIds) {
+
+            Sensor sensor = sensorsMap.get(sensorId);
+
+            if (sensor == null) {
+                throw new IllegalArgumentException(
+                        "Sensor not found: " + sensorId
+                );
+            }
+
             if (!sensor.getDevice().getDeviceId().equals(deviceId)) {
                 throw new IllegalArgumentException(
                         "Sensor " + sensorId
                                 + " does not belong to device " + deviceId
                 );
             }
+        }
 
-            /*
-             * Визначаємо тип параметра.
-             * Передбачається, що датчик має пов'язане визначення параметра.
-             */
+        // 5. Завантажуємо останні збережені показники одним запитом
+        Map<String, TelemetryReading> previousBySensor =
+                telemetryReadingRepository
+                        .findLatestBySensorIds(sensorIds)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                reading -> reading.getSensor().getSensorId(),
+                                Function.identity()
+                        ));
+
+        // 6. Отримуємо поточний кеш
+        List<TelemetryReading> cachedReadings =
+                telemetryReadingMap.getOrDefault(
+                        deviceId,
+                        List.of()
+                );
+
+        Map<String, TelemetryReading> latestBySensor =
+                new LinkedHashMap<>();
+
+        for (TelemetryReading reading : cachedReadings) {
+            latestBySensor.put(
+                    reading.getSensor().getSensorId(),
+                    reading
+            );
+        }
+
+        // 7. Якщо кеш порожній, відновлюємо його з БД
+        if (cachedReadings.isEmpty()) {
+
+            List<TelemetryReading> allLatestReadings =
+                    telemetryReadingRepository
+                            .findLatestByDeviceId(deviceId);
+
+            for (TelemetryReading reading : allLatestReadings) {
+
+                String sensorId = reading.getSensor().getSensorId();
+
+                if (reading.getSensor().isEnabled()) {
+                    latestBySensor.put(sensorId, reading);
+                }
+            }
+        }
+
+        // 8. Готуємо списки показників
+        List<TelemetryReading> readings = new ArrayList<>();
+        List<TelemetryReading> changedReadings = new ArrayList<>();
+
+        // 9. Обробляємо телеметрію
+        for (Map.Entry<String, JsonNode> entry : request.values().entrySet()) {
+
+            String sensorId = entry.getKey();
+            JsonNode value = entry.getValue();
+
+            Sensor sensor = sensorsMap.get(sensorId);
+
+            // Вимкнений датчик:
+            // не зберігаємо значення та видаляємо його з кешу
+            if (!sensor.isEnabled()) {
+                latestBySensor.remove(sensorId);
+                continue;
+            }
+
+            // Перевіряємо визначення параметра
             if (sensor.getParameterDefinition() == null) {
                 throw new IllegalStateException(
                         "Parameter definition is missing for sensor: "
@@ -167,9 +220,7 @@ public class TelemetryServiceImpl implements TelemetryService {
             Boolean booleanValue = null;
             String textValue = null;
 
-            /*
-             * Перетворюємо JSON-значення відповідно до типу параметра.
-             */
+            // Перетворюємо JSON відповідно до типу параметра
             switch (dataType) {
 
                 case NUMBER -> {
@@ -210,9 +261,7 @@ public class TelemetryServiceImpl implements TelemetryService {
                 );
             }
 
-            /*
-             * Створюємо об'єкт поточного показника.
-             */
+            // Створюємо поточний показник
             TelemetryReading currentReading = new TelemetryReading(
                     sensor,
                     numericValue,
@@ -221,51 +270,32 @@ public class TelemetryServiceImpl implements TelemetryService {
                     request.measuredAt()
             );
 
+            // Додаємо до поточної телеметрії
             readings.add(currentReading);
 
-            /*
-             * Знаходимо попереднє значення цього датчика.
-             */
-            var previousReading = telemetryReadingRepository.findTopBySensor_SensorIdOrderByReceivedAtDesc(sensorId)
-                    .orElse(previousBySensor.get(sensorId));
+            // Отримуємо попередній збережений показник
+            TelemetryReading previousReading =
+                    previousBySensor.get(sensorId);
 
-            /*
-             * У БД потрібно записати показник, якщо:
-             * 1. Це перше отримане значення датчика.
-             * 2. Значення відрізняється від попереднього.
-             */
+            // Перевіряємо зміну значення
             if (previousReading == null
                     || hasValueChanged(previousReading, currentReading)) {
 
                 changedReadings.add(currentReading);
             }
+
+            // Оновлюємо актуальне значення в кеші
+            latestBySensor.put(sensorId, currentReading);
         }
 
-        /*
-         * Зберігаємо в БД лише змінені показники.
-         */
+        // 10. Пакетне збереження змінених показників
         if (!changedReadings.isEmpty()) {
             telemetryReadingRepository.saveAll(changedReadings);
         }
 
-        /*
-         * Оновлюємо кеш.
-         *
-         * Важливо: якщо повідомлення містить лише частину датчиків,
-         * попередні значення решти датчиків залишаються в кеші.
-         */
-        Map<String, TelemetryReading> latestBySensor =
-                new LinkedHashMap<>(previousBySensor);
-
-        for (TelemetryReading reading : readings) {
-            latestBySensor.put(
-                    reading.getSensor().getSensorId(),
-                    reading
-            );
-        }
-
+        // 11. Оновлюємо кеш для Vaadin UI
         telemetryReadingMap.put(
-                device.getDeviceId(),
+                deviceId,
                 new ArrayList<>(latestBySensor.values())
         );
 
@@ -283,11 +313,45 @@ public class TelemetryServiceImpl implements TelemetryService {
                         )
                 );
 
+        if (device.getDeviceRegistrationStatus() != DeviceRegistrationStatus.ACTIVE) {
+            return List.of();
+        }
+
         List<TelemetryReading> readings =
-                telemetryReadingMap.getOrDefault(
+                new ArrayList<>(telemetryReadingMap.getOrDefault(
                         device.getDeviceId(),
                         List.of()
-                );
+                ));
+
+        if (readings.isEmpty()) {
+            return List.of();
+        }
+
+        // Отримуємо ID всіх датчиків із кешу
+        Set<String> sensorIds = readings.stream()
+                .map(reading -> reading.getSensor().getSensorId())
+                .collect(Collectors.toSet());
+
+        // Одним запитом отримуємо стан усіх датчиків
+        Set<String> enabledSensorIds = sensorRepository
+                .findAllBySensorIdIn(sensorIds)
+                .stream()
+                .filter(Sensor::isEnabled)
+                .map(Sensor::getSensorId)
+                .collect(Collectors.toSet());
+
+        // Видаляємо з кешованого списку вимкнені датчики
+        readings.removeIf(reading ->
+                !enabledSensorIds.contains(
+                        reading.getSensor().getSensorId()
+                )
+        );
+
+        // Оновлюємо кеш
+        telemetryReadingMap.put(
+                device.getDeviceId(),
+                readings
+        );
 
         return readings.stream()
                 .map(telemetryReadingMapper::toTelemetryReadingResponse)
@@ -299,9 +363,37 @@ public class TelemetryServiceImpl implements TelemetryService {
      */
     @Override
     public synchronized List<TelemetryReadingResponse> getTelemetryReadings() {
-        return telemetryReadingMap.values()
+
+        // Отримуємо всі показники з кешу
+        List<TelemetryReading> readings = telemetryReadingMap.values()
                 .stream()
                 .flatMap(List::stream)
+                .toList();
+
+        if (readings.isEmpty()) {
+            return List.of();
+        }
+
+        // Збираємо унікальні ID датчиків
+        Set<String> sensorIds = readings.stream()
+                .map(reading -> reading.getSensor().getSensorId())
+                .collect(Collectors.toSet());
+
+        // Одним запитом отримуємо всі датчики
+        Set<String> enabledSensorIds = sensorRepository
+                .findAllBySensorIdIn(sensorIds)
+                .stream()
+                .filter(Sensor::isEnabled)
+                .map(Sensor::getSensorId)
+                .collect(Collectors.toSet());
+
+        // Залишаємо тільки активні датчики
+        return readings.stream()
+                .filter(reading ->
+                        enabledSensorIds.contains(
+                                reading.getSensor().getSensorId()
+                        )
+                )
                 .map(telemetryReadingMapper::toTelemetryReadingResponse)
                 .collect(Collectors.toList());
     }

@@ -1,64 +1,71 @@
 package ua.home.heatingautomation2026.ui;
 
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import lombok.extern.slf4j.Slf4j;
 import ua.home.heatingautomation2026.dto.TelemetryReadingResponse;
 import ua.home.heatingautomation2026.entity.Sensor;
 import ua.home.heatingautomation2026.repository.SensorRepository;
 import ua.home.heatingautomation2026.service.TelemetryService;
 
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
+@Slf4j
 @Route(value = "sensor/:sensorId", layout = MainLayout.class)
 @PageTitle("Графік датчика | Home Heating")
 public class SensorTemperatureChartView extends VerticalLayout
         implements BeforeEnterObserver {
 
+    private static final int MAX_READINGS = 500;
+
     private static final int CHART_WIDTH = 1000;
     private static final int CHART_HEIGHT = 440;
 
-    private static final int LEFT = 85;
-    private static final int RIGHT = 30;
-    private static final int TOP = 35;
-    private static final int BOTTOM = 75;
+    private static final int PADDING_LEFT = 75;
+    private static final int PADDING_RIGHT = 30;
+    private static final int PADDING_TOP = 35;
+    private static final int PADDING_BOTTOM = 65;
 
-    private static final DateTimeFormatter DATE_FORMAT =
-            DateTimeFormatter
-                    .ofPattern("dd.MM.yyyy HH:mm:ss")
-                    .withZone(ZoneId.of("Europe/Kyiv"));
+    private static final String TEXT_COLOR = "#cbd5e1";
+    private static final String GRID_COLOR = "#334155";
+    private static final String LINE_COLOR = "#60a5fa";
+    private static final String BACKGROUND_COLOR = "#172033";
 
-    private static final DateTimeFormatter AXIS_DATE_FORMAT =
-            DateTimeFormatter
-                    .ofPattern("dd.MM HH:mm")
-                    .withZone(ZoneId.of("Europe/Kyiv"));
+    private static final DateTimeFormatter DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
+                    .withLocale(Locale.forLanguageTag("uk-UA"))
+                    .withZone(ZoneId.systemDefault());
 
     private final SensorRepository sensorRepository;
     private final TelemetryService telemetryService;
 
+    private String sensorId;
+
     private final H1 title = new H1("Графік датчика");
     private final Paragraph sensorInfo = new Paragraph();
-    private final Span readingsInfo = new Span();
+    private final Paragraph readingsInfo = new Paragraph();
+
     private final Div chartContainer = new Div();
 
-    private String currentSensorId;
-    private Sensor currentSensor;
+    private final Button backButton =
+            new Button("← Назад", event -> navigateBack());
+
+    private final Button refreshButton =
+            new Button("Оновити", event -> refreshChart());
 
     public SensorTemperatureChartView(
             SensorRepository sensorRepository,
@@ -67,72 +74,69 @@ public class SensorTemperatureChartView extends VerticalLayout
         this.sensorRepository = sensorRepository;
         this.telemetryService = telemetryService;
 
+        addClassName("sensor-chart-view");
         setSizeFull();
         setPadding(true);
         setSpacing(true);
-        addClassName("page-view");
 
-        Button backButton = new Button(
-                "← До пристрою",
-                event -> {
-                    if (currentSensor != null
-                            && currentSensor.getDevice() != null) {
+        configureComponents();
+        buildLayout();
+    }
 
-                        getUI().ifPresent(ui ->
-                                ui.navigate(
-                                        "device/"
-                                                + currentSensor.getDevice()
-                                                .getDeviceId()
-                                )
-                        );
-                    }
-                }
-        );
+    private void configureComponents() {
+        title.addClassName("sensor-chart-title");
 
-        Button refreshButton = new Button(
-                "Оновити графік",
-                event -> refreshChart()
-        );
+        sensorInfo.addClassName("sensor-chart-info");
+        readingsInfo.addClassName("sensor-chart-readings-info");
 
+        backButton.addClassName("sensor-chart-back-button");
+        refreshButton.addClassName("sensor-chart-refresh-button");
+
+        chartContainer.addClassName("sensor-chart-container");
+        chartContainer.setWidthFull();
+
+        backButton.getElement()
+                .setAttribute("aria-label", "Повернутися до попередньої сторінки");
+
+        refreshButton.getElement()
+                .setAttribute("aria-label", "Оновити графік вимірювань");
+    }
+
+    private void buildLayout() {
         HorizontalLayout header =
                 new HorizontalLayout(backButton, title, refreshButton);
 
+        header.addClassName("sensor-chart-header");
         header.setWidthFull();
         header.setAlignItems(Alignment.CENTER);
+        header.setPadding(false);
+        header.setSpacing(true);
         header.expand(title);
 
-        chartContainer.setWidthFull();
-        chartContainer.getStyle()
-                .set("overflow-x", "auto");
+        Div infoCard = new Div(sensorInfo);
+        infoCard.addClassName("sensor-chart-info-card");
+        infoCard.setWidthFull();
 
-        add(
-                header,
-                sensorInfo,
-                new H2("Історія вимірювань"),
-                readingsInfo,
-                chartContainer
-        );
+        H2 chartTitle = new H2("Історія вимірювань");
+        chartTitle.addClassName("sensor-chart-section-title");
+
+        Div chartCard = new Div(chartTitle, readingsInfo, chartContainer);
+        chartCard.addClassName("sensor-chart-card");
+        chartCard.setWidthFull();
+
+        add(header, infoCard, chartCard);
+
+        setAlignItems(Alignment.STRETCH);
     }
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        currentSensorId = event.getRouteParameters()
+        sensorId = event.getRouteParameters()
                 .get("sensorId")
                 .orElse(null);
 
-        if (currentSensorId == null || currentSensorId.isBlank()) {
-            showError("Не вказано ID датчика.");
-            return;
-        }
-
-        currentSensor = sensorRepository
-                .findWithDetailsBySensorId(currentSensorId)
-                .orElse(null);
-
-        if (currentSensor == null) {
-            showError(
-                    "Датчик з ID " + currentSensorId + " не знайдено."
-            );
+        if (sensorId == null || sensorId.isBlank()) {
+            showError("Не вказано ідентифікатор датчика.");
             return;
         }
 
@@ -140,311 +144,329 @@ public class SensorTemperatureChartView extends VerticalLayout
     }
 
     private void refreshChart() {
-        if (currentSensor == null) {
+        if (sensorId == null || sensorId.isBlank()) {
             return;
         }
 
-        String sensorName = currentSensor.getSensorName();
+        try {
+            Sensor sensor = sensorRepository.findBySensorIdWithParameterDefinition(sensorId)
+                    .orElse(null);
 
-        String parameterName =
-                currentSensor.getParameterDefinition() == null
-                        ? "Невідомий параметр"
-                        : currentSensor.getParameterDefinition().getName();
+            if (sensor == null) {
+                showError("Датчик з ідентифікатором " + sensorId
+                        + " не знайдено.");
+                return;
+            }
 
-        String unit =
-                currentSensor.getParameterDefinition() == null
-                        || currentSensor.getParameterDefinition().getUnit() == null
-                        ? ""
-                        : currentSensor.getParameterDefinition().getUnit();
+            updateSensorInfo(sensor);
 
-        title.setText(sensorName);
+            List<TelemetryReadingResponse> readings =
+                    telemetryService.getSensorTelemetryReadings(sensorId);
 
-        sensorInfo.setText(
-                "Датчик: " + sensorName
-                        + " | ID: " + currentSensor.getSensorId()
-                        + " | Параметр: " + parameterName
-                        + (unit.isBlank() ? "" : " (" + unit + ")")
-        );
-
-        List<TelemetryReadingResponse> readings =
-                telemetryService.getSensorTelemetryReadings(
-                        currentSensorId
+            if (readings == null || readings.isEmpty()) {
+                showEmptyChart(
+                        "Для цього датчика поки немає вимірювань."
                 );
+                return;
+            }
 
-        /*
-         * Графік призначений для числових показників.
-         * Значення boolean та string не відображаємо.
-         */
-        List<TelemetryReadingResponse> numericReadings =
-                new ArrayList<>(
-                        readings.stream()
-                                .filter(reading ->
-                                        reading.numericValue() != null
-                                )
-                                .toList()
+            List<TelemetryReadingResponse> sortedReadings =
+                    readings.stream()
+                            .sorted(Comparator.comparing(
+                                    TelemetryReadingResponse::measuredAt
+                            ))
+                            .toList();
+
+            if (sortedReadings.size() > MAX_READINGS) {
+                sortedReadings = sortedReadings.subList(
+                        sortedReadings.size() - MAX_READINGS,
+                        sortedReadings.size()
                 );
+            }
 
-        /*
-         * Репозиторій повертає записи від найновішого до найстарішого.
-         * Для графіка потрібен зворотний порядок.
-         */
-        numericReadings.sort(
-                Comparator.comparing(
-                        this::getTimestamp,
-                        Comparator.nullsFirst(Comparator.naturalOrder())
-                )
-        );
-
-        readingsInfo.setText(
-                "Кількість точок: "
-                        + numericReadings.size()
-                        + " із максимум 500"
-        );
-
-        if (numericReadings.isEmpty()) {
-            chartContainer.removeAll();
-
-            chartContainer.add(
-                    new Paragraph(
-                            "Для цього датчика ще немає числових вимірювань."
-                    )
+            readingsInfo.setText(
+                    "Кількість вимірювань: " + sortedReadings.size()
+                            + ". Показано останні "
+                            + MAX_READINGS
+                            + " записів за наявності більшої історії."
             );
 
-            return;
-        }
+            String svg = buildSvgChart(sortedReadings, sensor);
 
-        chartContainer.getElement().setProperty(
-                "innerHTML",
-                buildSvgChart(numericReadings, unit)
+            chartContainer.removeAll();
+            chartContainer.getElement().setProperty("innerHTML", svg);
+
+        } catch (Exception exception) {
+            log.error(
+                    "Не вдалося завантажити графік датчика {}",
+                    sensorId,
+                    exception
+            );
+
+            showError(
+                    "Не вдалося завантажити дані. "
+                            + "Перевірте підключення та спробуйте ще раз."
+            );
+        }
+    }
+
+    private void updateSensorInfo(Sensor sensor) {
+        String name = sensor.getSensorName() != null
+                ? sensor.getSensorName()
+                : sensor.getSensorId();
+
+        String parameterName = sensor.getParameterDefinition() != null
+                && sensor.getParameterDefinition().getName() != null
+                ? sensor.getParameterDefinition().getName()
+                : "Не визначено";
+
+        String unit = sensor.getParameterDefinition() != null
+                && sensor.getParameterDefinition().getUnit() != null
+                ? sensor.getParameterDefinition().getUnit()
+                : "";
+
+        sensorInfo.setText(
+                "Датчик: " + name
+                        + " | ID: " + sensor.getSensorId()
+                        + " | Параметр: " + parameterName
+                        + (unit.isBlank() ? "" : " (" + unit + ")")
         );
     }
 
     private String buildSvgChart(
             List<TelemetryReadingResponse> readings,
-            String unit
+            Sensor sensor
     ) {
-        int plotWidth = CHART_WIDTH - LEFT - RIGHT;
-        int plotHeight = CHART_HEIGHT - TOP - BOTTOM;
+        List<TelemetryReadingResponse> numericReadings =
+                readings.stream()
+                        .filter(reading -> reading.numericValue() != null)
+                        .toList();
 
-        List<BigDecimal> values = readings.stream()
-                .map(TelemetryReadingResponse::numericValue)
-                .toList();
+        if (numericReadings.isEmpty()) {
+            return "";
+        }
 
-        double minValue = values.stream()
-                .mapToDouble(BigDecimal::doubleValue)
+        double minValue = numericReadings.stream()
+                .mapToDouble(reading -> reading.numericValue().doubleValue())
                 .min()
                 .orElse(0.0);
 
-        double maxValue = values.stream()
-                .mapToDouble(BigDecimal::doubleValue)
+        double maxValue = numericReadings.stream()
+                .mapToDouble(reading -> reading.numericValue().doubleValue())
                 .max()
                 .orElse(1.0);
 
-        /*
-         * Якщо всі значення однакові, додаємо запас,
-         * щоб точки не накладалися на межі графіка.
-         */
         if (Double.compare(minValue, maxValue) == 0) {
-            double padding = Math.max(Math.abs(minValue) * 0.05, 1.0);
-            minValue -= padding;
-            maxValue += padding;
+            minValue -= 1.0;
+            maxValue += 1.0;
         } else {
-            double padding = (maxValue - minValue) * 0.08;
+            double padding = (maxValue - minValue) * 0.1;
             minValue -= padding;
             maxValue += padding;
         }
+
+        int plotWidth = CHART_WIDTH - PADDING_LEFT - PADDING_RIGHT;
+        int plotHeight = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
 
         StringBuilder svg = new StringBuilder();
 
         svg.append("""
                 <svg xmlns="http://www.w3.org/2000/svg"
                      viewBox="0 0 %d %d"
-                     width="100%%"
-                     style="min-width:650px;max-width:1200px;
-                            font-family:Arial,sans-serif">
-                """.formatted(CHART_WIDTH, CHART_HEIGHT));
+                     width="%d"
+                     height="%d"
+                     role="img"
+                     aria-label="Графік історії вимірювань датчика"
+                     style="font-family: Arial, sans-serif; max-width: none;">
+                """.formatted(
+                CHART_WIDTH,
+                CHART_HEIGHT,
+                CHART_WIDTH,
+                CHART_HEIGHT
+        ));
 
         svg.append("""
-                <rect width="100%%" height="100%%" fill="white"/>
-                """);
+                <rect x="0" y="0" width="%d" height="%d"
+                      rx="10" fill="%s"/>
+                """.formatted(
+                CHART_WIDTH,
+                CHART_HEIGHT,
+                BACKGROUND_COLOR
+        ));
 
-        /*
-         * Горизонтальні лінії сітки та підписи осі Y.
-         */
-        for (int i = 0; i <= 5; i++) {
-            double ratio = i / 5.0;
+        // Горизонтальні лінії сітки та підписи значень.
+        int horizontalLines = 5;
 
-            double y = TOP + ratio * plotHeight;
+        for (int i = 0; i <= horizontalLines; i++) {
+            double ratio = (double) i / horizontalLines;
 
-            double value = maxValue
-                    - ratio * (maxValue - minValue);
+            double y = PADDING_TOP + ratio * plotHeight;
+            double value = maxValue - ratio * (maxValue - minValue);
 
             svg.append("""
                     <line x1="%d" y1="%.2f"
                           x2="%d" y2="%.2f"
-                          stroke="#dddddd" stroke-width="1"/>
+                          stroke="%s" stroke-width="1"/>
                     """.formatted(
-                    LEFT,
+                    PADDING_LEFT,
                     y,
-                    CHART_WIDTH - RIGHT,
-                    y
+                    CHART_WIDTH - PADDING_RIGHT,
+                    y,
+                    GRID_COLOR
             ));
 
             svg.append("""
                     <text x="%d" y="%.2f"
+                          fill="%s"
+                          font-size="12"
                           text-anchor="end"
-                          font-size="13" fill="#444444">%s</text>
+                          dominant-baseline="middle">%s</text>
                     """.formatted(
-                    LEFT - 10,
-                    y + 4,
-                    escapeXml(formatNumber(value))
+                    PADDING_LEFT - 10,
+                    y,
+                    TEXT_COLOR,
+                    escapeXml(String.format(Locale.US, "%.2f", value))
             ));
         }
 
-        /*
-         * Вертикальна та горизонтальна осі.
-         */
-        svg.append("""
-                <line x1="%d" y1="%d"
-                      x2="%d" y2="%d"
-                      stroke="#444444" stroke-width="1.5"/>
-                <line x1="%d" y1="%d"
-                      x2="%d" y2="%d"
-                      stroke="#444444" stroke-width="1.5"/>
-                """.formatted(
-                LEFT,
-                TOP,
-                LEFT,
-                TOP + plotHeight,
-                LEFT,
-                TOP + plotHeight,
-                CHART_WIDTH - RIGHT,
-                TOP + plotHeight
-        ));
+        // Вертикальні лінії сітки та часові позначки.
+        int verticalLines = Math.min(5, numericReadings.size() - 1);
 
-        /*
-         * Формуємо координати точок.
-         */
-        StringBuilder points = new StringBuilder();
+        if (verticalLines > 0) {
+            for (int i = 0; i <= verticalLines; i++) {
+                double ratio = (double) i / verticalLines;
 
-        for (int i = 0; i < readings.size(); i++) {
-            double x = readings.size() == 1
-                    ? LEFT + plotWidth / 2.0
-                    : LEFT + (double) i / (readings.size() - 1)
-                    * plotWidth;
+                double x = PADDING_LEFT + ratio * plotWidth;
 
-            double value = readings.get(i)
-                    .numericValue()
-                    .doubleValue();
+                svg.append("""
+                        <line x1="%.2f" y1="%d"
+                              x2="%.2f" y2="%d"
+                              stroke="%s" stroke-width="1"/>
+                        """.formatted(
+                        x,
+                        PADDING_TOP,
+                        x,
+                        CHART_HEIGHT - PADDING_BOTTOM,
+                        GRID_COLOR
+                ));
 
-            double y = TOP
-                    + (maxValue - value)
-                    / (maxValue - minValue)
-                    * plotHeight;
+                int index = (int) Math.round(
+                        ratio * (numericReadings.size() - 1)
+                );
 
-            points.append(
-                    String.format(
-                            Locale.US,
-                            "%.2f,%.2f ",
-                            x,
-                            y
-                    )
-            );
+                TelemetryReadingResponse reading =
+                        numericReadings.get(index);
+
+                String timestamp = reading.numericValue() == null
+                        ? ""
+                        : DATE_FORMATTER.format(reading.measuredAt());
+
+                svg.append("""
+                        <text x="%.2f" y="%d"
+                              fill="%s"
+                              font-size="11"
+                              text-anchor="middle"
+                              transform="rotate(-25 %.2f %d)">%s</text>
+                        """.formatted(
+                        x,
+                        CHART_HEIGHT - PADDING_BOTTOM + 22,
+                        TEXT_COLOR,
+                        x,
+                        CHART_HEIGHT - PADDING_BOTTOM + 22,
+                        escapeXml(timestamp)
+                ));
+            }
         }
 
-        /*
-         * Лінія графіка.
-         */
-        svg.append("""
-                <polyline points="%s"
-                          fill="none"
-                          stroke="#1976d2"
-                          stroke-width="2.5"
-                          stroke-linejoin="round"
-                          stroke-linecap="round"/>
-                """.formatted(points));
+        // Лінія графіка.
+        StringBuilder points = new StringBuilder();
 
-        /*
-         * Точки та підказки з датою і значенням.
-         */
-        for (int i = 0; i < readings.size(); i++) {
-            TelemetryReadingResponse reading = readings.get(i);
+        for (int i = 0; i < numericReadings.size(); i++) {
+            TelemetryReadingResponse reading = numericReadings.get(i);
 
-            double x = readings.size() == 1
-                    ? LEFT + plotWidth / 2.0
-                    : LEFT + (double) i / (readings.size() - 1)
-                    * plotWidth;
+            double x;
+
+            if (numericReadings.size() == 1) {
+                x = PADDING_LEFT + plotWidth / 2.0;
+            } else {
+                x = PADDING_LEFT
+                        + (double) i / (numericReadings.size() - 1)
+                        * plotWidth;
+            }
 
             double value = reading.numericValue().doubleValue();
 
-            double y = TOP
-                    + (maxValue - value)
-                    / (maxValue - minValue)
+            double y = PADDING_TOP
+                    + (maxValue - value) / (maxValue - minValue)
                     * plotHeight;
 
-            String timestamp = formatTimestamp(getTimestamp(reading));
+            points.append(String.format(
+                    Locale.US,
+                    "%.2f,%.2f ",
+                    x,
+                    y
+            ));
+        }
+
+        svg.append("""
+                <polyline points="%s"
+                          fill="none"
+                          stroke="%s"
+                          stroke-width="3"
+                          stroke-linejoin="round"
+                          stroke-linecap="round"/>
+                """.formatted(
+                points,
+                LINE_COLOR
+        ));
+
+        // Кружки для окремих вимірювань.
+        for (int i = 0; i < numericReadings.size(); i++) {
+            TelemetryReadingResponse reading = numericReadings.get(i);
+
+            double x;
+
+            if (numericReadings.size() == 1) {
+                x = PADDING_LEFT + plotWidth / 2.0;
+            } else {
+                x = PADDING_LEFT
+                        + (double) i / (numericReadings.size() - 1)
+                        * plotWidth;
+            }
+
+            double value = reading.numericValue().doubleValue();
+
+            double y = PADDING_TOP
+                    + (maxValue - value) / (maxValue - minValue)
+                    * plotHeight;
+
+            String timestamp = reading.measuredAt() == null
+                    ? ""
+                    : DATE_FORMATTER.format(reading.measuredAt());
+
+            String unit = sensor.getParameterDefinition() != null
+                    && sensor.getParameterDefinition().getUnit() != null
+                    ? sensor.getParameterDefinition().getUnit()
+                    : "";
 
             String tooltip = timestamp
-                    + " — "
-                    + formatNumber(value)
-                    + (unit == null || unit.isBlank() ? "" : " " + unit);
+                    + " | "
+                    + String.format(Locale.US, "%.2f", value)
+                    + (unit.isBlank() ? "" : " " + unit);
 
             svg.append("""
-                    <circle cx="%.2f" cy="%.2f" r="3"
-                            fill="#1976d2">
+                    <circle cx="%.2f" cy="%.2f" r="3.5"
+                            fill="%s"
+                            stroke="%s"
+                            stroke-width="1.5">
                         <title>%s</title>
                     </circle>
                     """.formatted(
                     x,
                     y,
+                    LINE_COLOR,
+                    BACKGROUND_COLOR,
                     escapeXml(tooltip)
-            ));
-        }
-
-        /*
-         * Підписи часу на початку, посередині та в кінці осі X.
-         */
-        int[] indices = {
-                0,
-                readings.size() / 2,
-                readings.size() - 1
-        };
-
-        for (int index : indices) {
-            TelemetryReadingResponse reading = readings.get(index);
-
-            double x = readings.size() == 1
-                    ? LEFT + plotWidth / 2.0
-                    : LEFT + (double) index / (readings.size() - 1)
-                    * plotWidth;
-
-            Instant timestamp = getTimestamp(reading);
-
-            String label = timestamp == null
-                    ? "—"
-                    : AXIS_DATE_FORMAT.format(timestamp);
-
-            svg.append("""
-                    <text x="%.2f" y="%d"
-                          text-anchor="middle"
-                          font-size="12" fill="#444444">%s</text>
-                    """.formatted(
-                    x,
-                    TOP + plotHeight + 25,
-                    escapeXml(label)
-            ));
-        }
-
-        /*
-         * Підпис одиниці вимірювання.
-         */
-        if (unit != null && !unit.isBlank()) {
-            svg.append("""
-                    <text x="15" y="%d"
-                          font-size="13" fill="#444444">%s</text>
-                    """.formatted(
-                    TOP,
-                    escapeXml(unit)
             ));
         }
 
@@ -453,24 +475,36 @@ public class SensorTemperatureChartView extends VerticalLayout
         return svg.toString();
     }
 
-    private Instant getTimestamp(TelemetryReadingResponse reading) {
-        return reading.measuredAt() != null
-                ? reading.measuredAt()
-                : reading.receivedAt();
+    private void showEmptyChart(String message) {
+        readingsInfo.setText("Немає даних для відображення.");
+
+        chartContainer.removeAll();
+
+        Paragraph paragraph = new Paragraph(message);
+        paragraph.addClassName("sensor-chart-empty-message");
+
+        chartContainer.add(paragraph);
     }
 
-    private String formatTimestamp(Instant timestamp) {
-        if (timestamp == null) {
-            return "Час невідомий";
+    private void showError(String message) {
+        sensorInfo.setText(message);
+        readingsInfo.setText("");
+        chartContainer.removeAll();
+
+        Paragraph paragraph = new Paragraph(message);
+        paragraph.addClassName("sensor-chart-error-message");
+
+        chartContainer.add(paragraph);
+    }
+
+    private void navigateBack() {
+        UI ui = UI.getCurrent();
+
+        if (ui == null) {
+            return;
         }
 
-        return DATE_FORMAT.format(timestamp);
-    }
-
-    private String formatNumber(double value) {
-        return BigDecimal.valueOf(value)
-                .stripTrailingZeros()
-                .toPlainString();
+        ui.getPage().getHistory().back();
     }
 
     private String escapeXml(String value) {
@@ -484,13 +518,5 @@ public class SensorTemperatureChartView extends VerticalLayout
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&apos;");
-    }
-
-    private void showError(String message) {
-        title.setText("Датчик недоступний");
-        sensorInfo.setText(message);
-        readingsInfo.setText("");
-        chartContainer.removeAll();
-        chartContainer.add(new Paragraph(message));
     }
 }

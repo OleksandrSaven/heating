@@ -25,6 +25,7 @@ public class DashboardView extends VerticalLayout {
 
     private final DeviceService deviceService;
     private final DeviceConnectivityService deviceConnectivityService;
+
     private final Div devicesContainer = new Div();
 
     private final Button refreshButton = new Button(
@@ -32,7 +33,10 @@ public class DashboardView extends VerticalLayout {
             VaadinIcon.REFRESH.create()
     );
 
-    public DashboardView(DeviceService deviceService, DeviceConnectivityService deviceConnectivityService) {
+    public DashboardView(
+            DeviceService deviceService,
+            DeviceConnectivityService deviceConnectivityService
+    ) {
         this.deviceService = deviceService;
         this.deviceConnectivityService = deviceConnectivityService;
 
@@ -45,10 +49,14 @@ public class DashboardView extends VerticalLayout {
         H1 title = new H1("Система");
         title.addClassName("dashboard-title");
 
-        refreshButton.addClickListener(event -> refreshData());
-        refreshButton.addClassName("dashboard-refresh");
+        //refreshButton.addClassName("dashboard-refresh");
+        //refreshButton.addClickListener(event -> refreshData());
 
-        HorizontalLayout header = new HorizontalLayout(title, refreshButton);
+        HorizontalLayout header = new HorizontalLayout(
+                title
+                //refreshButton
+        );
+
         header.addClassName("dashboard-header");
         header.setWidthFull();
         header.setAlignItems(Alignment.CENTER);
@@ -68,14 +76,65 @@ public class DashboardView extends VerticalLayout {
         Div card = new Div();
         card.addClassName("device-card");
 
-        Span name = new Span(
-                getConnectivityLabel(device) + " " + device.getDeviceName()
-        );
+        Span statusIndicator = new Span();
+        statusIndicator.addClassName("device-status-indicator");
+
+        DeviceConnectivityStatus status =
+                deviceConnectivityService.getDeviceConnectivityStatus(
+                        device.getDeviceId()
+                );
+
+        switch (status) {
+            case ONLINE -> {
+                statusIndicator.addClassName("device-status-online");
+                statusIndicator.getElement().setAttribute("title", "Пристрій онлайн");
+                statusIndicator.getElement().setAttribute("aria-label", "Онлайн");
+            }
+            case OFFLINE -> {
+                statusIndicator.addClassName("device-status-offline");
+                statusIndicator.getElement().setAttribute("title", "Пристрій офлайн");
+                statusIndicator.getElement().setAttribute("aria-label", "Офлайн");
+            }
+            case NEVER_CONNECTED -> {
+                statusIndicator.addClassName("device-status-never-connected");
+                statusIndicator.getElement().setAttribute(
+                        "title",
+                        "Пристрій ще не підключався"
+                );
+                statusIndicator.getElement().setAttribute(
+                        "aria-label",
+                        "Ще не підключався"
+                );
+            }
+        }
+
+        Span name = new Span(device.getDeviceName());
         name.addClassName("device-name");
 
-        card.add(name);
+        Span deviceId = new Span("ID: " + device.getDeviceId());
+        deviceId.addClassName("device-id");
 
-        card.getStyle().set("cursor", "pointer");
+        Div deviceInfo = new Div(name, deviceId);
+        deviceInfo.addClassName("device-info");
+
+        Span arrow = new Span("›");
+        arrow.addClassName("device-card-arrow");
+
+        card.add(statusIndicator, deviceInfo, arrow);
+        card.getElement().setAttribute("role", "link");
+        card.getElement().setAttribute("tabindex", "0");
+        card.getElement().setAttribute(
+                "aria-label",
+                "Відкрити пристрій " + device.getDeviceName()
+        );
+
+        card.addClassName("device-card-clickable");
+
+        card.addClickListener(event ->
+                UI.getCurrent().navigate(
+                        "device/" + device.getDeviceId()
+                )
+        );
 
         card.addClickListener(event ->
                 UI.getCurrent().navigate(
@@ -86,22 +145,9 @@ public class DashboardView extends VerticalLayout {
         return card;
     }
 
-    private String getConnectivityLabel(Device device) {
-
-        DeviceConnectivityStatus status =
-                deviceConnectivityService.getDeviceConnectivityStatus(
-                        device.getDeviceId()
-                );
-
-        return switch (status) {
-            case ONLINE -> "🟢";
-            case OFFLINE -> "🔴 ";
-            case NEVER_CONNECTED -> "⚪";
-        };
-    }
-
     private void refreshData() {
         refreshButton.setEnabled(false);
+        refreshButton.setText("Завантаження...");
 
         try {
             List<Device> devices = deviceService.findAllDevices();
@@ -109,26 +155,42 @@ public class DashboardView extends VerticalLayout {
             devicesContainer.removeAll();
 
             if (devices.isEmpty()) {
+                Div emptyState = new Div();
+
+                Span icon = new Span("⌁");
+                icon.addClassName("devices-empty-icon");
+
+                H2 emptyTitle = new H2("Пристроїв поки немає");
+                emptyTitle.addClassName("devices-empty-title");
+
                 Paragraph emptyMessage = new Paragraph(
-                        "Зареєстрованих пристроїв поки немає."
+                        "Зареєстровані пристрої з'являться тут після додавання до системи."
                 );
-                emptyMessage.addClassName("devices-empty");
-                devicesContainer.add(emptyMessage);
+                emptyMessage.addClassName("devices-empty-description");
+
+                emptyState.add(icon, emptyTitle, emptyMessage);
+                emptyState.addClassName("devices-empty");
+
+                devicesContainer.add(emptyState);
             } else {
                 devices.stream()
                         .map(this::createDeviceCard)
                         .forEach(devicesContainer::add);
             }
+
         } catch (RuntimeException exception) {
             devicesContainer.removeAll();
 
             Paragraph errorMessage = new Paragraph(
-                    "Не вдалося завантажити пристрої. Перевір з'єднання із сервером."
+                    "Не вдалося завантажити пристрої. Перевірте з'єднання із сервером."
             );
+
             errorMessage.addClassName("devices-error");
             devicesContainer.add(errorMessage);
+
         } finally {
             refreshButton.setEnabled(true);
+            refreshButton.setText("Оновити");
         }
     }
 }

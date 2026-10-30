@@ -1,3 +1,4 @@
+/*
 package ua.home.heatingautomation2026.controller;
 
 import lombok.RequiredArgsConstructor;
@@ -61,4 +62,4 @@ public class DeviceParameterController {
 
         return ResponseEntity.ok(deviceParameterMapper.toResponse(deviceParameter));
     }
-}
+}*/

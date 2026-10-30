@@ -15,8 +15,8 @@ import java.util.UUID;
         name = "sensors",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_sensors_sensor_id",
-                        columnNames = "sensor_id"
+                        name = "uk_sensors_device_sensor",
+                        columnNames = {"device_pk", "sensor_id"}
                 )
         },
         indexes = {
