@@ -68,6 +68,7 @@ public class BoilerRoomView extends VerticalLayout {
     private boolean radiatorPumpOn;
     private boolean floorPumpOn;
     private boolean dhwPumpOn;
+    private boolean electricBoilerPumpOn;
 
     private double accumulatorChargePercent = Double.NaN;
     private Instant lastTelemetryAt;
@@ -337,6 +338,7 @@ public class BoilerRoomView extends VerticalLayout {
         rows.add(pumpRow("Радіатори", "radiatorPump"));
         rows.add(pumpRow("Тепла підлога", "floorPump"));
         rows.add(pumpRow("Бойлер ГВП", "dhwPump"));
+        rows.add(pumpRow("Електро котел", "electricBoilerPump"));
 
         card.add(rows);
 
@@ -1129,6 +1131,17 @@ public class BoilerRoomView extends VerticalLayout {
         try {
             var readings = telemetryService.getTelemetryReadings(DEVICE_ID);
 
+            if (readings.isEmpty()) {
+                clearTelemetryData();
+
+                statusTitle.setText("НЕМАЄ АКТУАЛЬНИХ ДАНИХ");
+                statusDescription.setText(
+                        "Очікування телеметрії від " + DEVICE_ID
+                );
+
+                return;
+            }
+
             Map<String, TelemetryReadingResponse> bySensorId =
                     new LinkedHashMap<>();
 
@@ -1140,7 +1153,7 @@ public class BoilerRoomView extends VerticalLayout {
 
             setNumber(bySensorId, "boiler_supply", value -> boilerSupply = value);
             setNumber(bySensorId, "boiler_return", value -> boilerReturn = value);
-            setNumber(bySensorId, "flue_temperature", value -> flueTemperature = value);
+            setNumber(bySensorId, "chimney_surface_temperature", value -> flueTemperature = value);
 
             setNumber(bySensorId, "accumulator_01", value -> accumulatorTop = value);
             setNumber(bySensorId, "accumulator_02", value -> accumulatorZoneTop = value);
@@ -1164,6 +1177,7 @@ public class BoilerRoomView extends VerticalLayout {
             radiatorPumpOn = getBoolean(bySensorId, "radiator_pump", false);
             floorPumpOn = getBoolean(bySensorId, "underfloor_pump", false);
             dhwPumpOn = getBoolean(bySensorId, "dhw_pump", false);
+            electricBoilerPumpOn = getBoolean(bySensorId, "electric_boiler_pump", false);
 
             lastTelemetryAt = readings.stream()
                     .map(reading -> reading.receivedAt() != null
@@ -1205,6 +1219,62 @@ public class BoilerRoomView extends VerticalLayout {
         }
     }
 
+    private void clearTelemetryData() {
+        // Температури
+        boilerSupply = Double.NaN;
+        boilerReturn = Double.NaN;
+        flueTemperature = Double.NaN;
+
+        accumulatorTop = Double.NaN;
+        accumulatorZoneTop = Double.NaN;
+        accumulatorMiddle = Double.NaN;
+        accumulatorZoneBottom = Double.NaN;
+        accumulatorBottom = Double.NaN;
+
+        radiatorIn = Double.NaN;
+        radiatorOut = Double.NaN;
+        floorIn = Double.NaN;
+        floorOut = Double.NaN;
+        dhwSupply = Double.NaN;
+        dhwTemperature = Double.NaN;
+
+        systemPressure = Double.NaN;
+        electricBoilerSupply = Double.NaN;
+        electricBoilerReturn = Double.NaN;
+
+        accumulatorChargePercent = Double.NaN;
+        lastTelemetryAt = null;
+
+        // Стани насосів більше невідомі
+        boilerPumpOn = false;
+        radiatorPumpOn = false;
+        floorPumpOn = false;
+        dhwPumpOn = false;
+        electricBoilerPumpOn = false;
+
+        // Оновлюємо температури та системні значення
+        updateTemperatureValues();
+        updateSystemValues();
+        updateSchematicTemperatures();
+        updateSchematicTemperatureColors();
+
+        // Для насосів показуємо невідомий стан, а не "Вимкнено"
+        pumpStates.values().forEach(span -> {
+            span.setText("—");
+            span.removeClassName("br-pump-on");
+            span.removeClassName("br-pump-off");
+        });
+
+        //updatePumpIndicators();
+        schematic.getElement().executeJs("""
+                    this.querySelectorAll('.br-pump-ring').forEach(ring => {
+                        ring.setAttribute('stroke', '#64748b');
+                        ring.classList.remove('pump-on', 'pump-off');
+                    });
+                """);
+
+    }
+
     @FunctionalInterface
     private interface NumberConsumer {
         void accept(double value);
@@ -1216,9 +1286,12 @@ public class BoilerRoomView extends VerticalLayout {
             NumberConsumer consumer
     ) {
         TelemetryReadingResponse reading = readings.get(sensorId);
+
         if (reading == null || reading.numericValue() == null) {
+            consumer.accept(Double.NaN);
             return;
         }
+
         consumer.accept(reading.numericValue().doubleValue());
     }
 
@@ -1267,6 +1340,7 @@ public class BoilerRoomView extends VerticalLayout {
         setPumpState("radiatorPump", radiatorPumpOn);
         setPumpState("floorPump", floorPumpOn);
         setPumpState("dhwPump", dhwPumpOn);
+        setPumpState("electricBoilerPump", electricBoilerPumpOn);
     }
 
     private void updateSystemValues() {
@@ -1401,7 +1475,8 @@ public class BoilerRoomView extends VerticalLayout {
                             'boiler-pump': $0,
                             'radiator-pump': $1,
                             'floor-pump': $2,
-                            'dhw-pump': $3
+                            'dhw-pump': $3,
+                            'electric-boiler-pump': $4
                         };
                         
                         for (const [id, isOn] of Object.entries(pumps)) {
@@ -1430,7 +1505,8 @@ public class BoilerRoomView extends VerticalLayout {
                 boilerPumpOn,
                 radiatorPumpOn,
                 floorPumpOn,
-                dhwPumpOn
+                dhwPumpOn,
+                electricBoilerPumpOn
         );
     }
 

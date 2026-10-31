@@ -381,7 +381,7 @@ public class SensorsView extends VerticalLayout {
             Notification.show(
                     "Не вдалося завантажити дані: "
                             + ex.getMessage(),
-                    5000,
+                    10000,
                     Notification.Position.BOTTOM_START
             );
         }

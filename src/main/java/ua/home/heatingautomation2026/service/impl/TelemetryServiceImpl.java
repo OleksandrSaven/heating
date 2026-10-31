@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ua.home.heatingautomation2026.dto.TelemetryRequest;
 import ua.home.heatingautomation2026.dto.TelemetryReadingResponse;
+import ua.home.heatingautomation2026.enam.DeviceConnectivityStatus;
 import ua.home.heatingautomation2026.enam.DeviceRegistrationStatus;
 import ua.home.heatingautomation2026.enam.ParameterDataType;
 import ua.home.heatingautomation2026.entity.Device;
@@ -16,6 +17,7 @@ import ua.home.heatingautomation2026.repository.SensorRepository;
 import ua.home.heatingautomation2026.repository.TelemetryReadingRepository;
 
 import tools.jackson.databind.JsonNode;
+import ua.home.heatingautomation2026.service.DeviceConnectivityService;
 import ua.home.heatingautomation2026.service.TelemetryService;
 
 import java.math.BigDecimal;
@@ -38,6 +40,7 @@ public class TelemetryServiceImpl implements TelemetryService {
     private final DeviceRepository deviceRepository;
     private final TelemetryReadingMapper telemetryReadingMapper;
     private final SensorRepository sensorRepository;
+    private final DeviceConnectivityService deviceConnectivityService;
 
     /**
      * Кеш останніх значень датчиків.
@@ -106,12 +109,12 @@ public class TelemetryServiceImpl implements TelemetryService {
                 );
             }
 
-            if (value == null || value.isNull()) {
+            /*if (value == null || value.isNull()) {
                 throw new IllegalArgumentException(
                         "Telemetry value must not be null for sensor: "
                                 + sensorId
-                );
-            }
+                );*/
+           // }
         }
 
         // 3. Одним запитом отримуємо всі датчики з пов'язаними Entity
@@ -224,6 +227,9 @@ public class TelemetryServiceImpl implements TelemetryService {
             switch (dataType) {
 
                 case NUMBER -> {
+                    if (value == null || value.isNull()) {
+                        break;
+                    }
                     if (!value.isNumber()) {
                         throw new IllegalArgumentException(
                                 "Expected numeric value for sensor: "
@@ -322,6 +328,14 @@ public class TelemetryServiceImpl implements TelemetryService {
                         device.getDeviceId(),
                         List.of()
                 ));
+
+        boolean IsOffline = deviceConnectivityService.getDeviceConnectivityStatus(device.getDeviceId())
+                == DeviceConnectivityStatus.OFFLINE;
+
+        if (IsOffline) {
+            telemetryReadingMap.remove(device.getDeviceId());
+            return List.of();
+        }
 
         if (readings.isEmpty()) {
             return List.of();

@@ -1,10 +1,11 @@
+/*
 package ua.home.heatingautomation2026.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
 import ua.home.heatingautomation2026.dto.DeviceParameterResponse;
-import ua.home.heatingautomation2026.entity.DeviceParameter;
+//import ua.home.heatingautomation2026.entity.DeviceParameter;
 
 import java.util.List;
 
@@ -29,4 +30,4 @@ public interface DeviceParameterMapper {
     List<DeviceParameterResponse> toResponseList(
             List<DeviceParameter> deviceParameters
     );
-}
+}*/
